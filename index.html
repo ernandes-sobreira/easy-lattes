@@ -9,8 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260917-0825" />
-  <link rel="stylesheet" href="review-v2.css?v=20260917-0825" />
+  <link rel="stylesheet" href="styles.css?v=20260917-0900" />
+  <link rel="stylesheet" href="review-v2.css?v=20260917-0900" />
+  <link rel="stylesheet" href="career-v3.css?v=20260917-0900" />
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
@@ -24,6 +25,7 @@
         <button class="nav-item active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>Visão geral</span></button>
         <button class="nav-item" data-view="lattes"><i data-lucide="file-user"></i><span>Meu Lattes</span></button>
         <button class="nav-item" data-view="inbox"><i data-lucide="inbox"></i><span>Caixa acadêmica</span><span class="nav-badge" id="navEvidenceBadge">0</span></button>
+        <button class="nav-item" data-view="career"><i data-lucide="radar"></i><span>Análise de carreira</span><span class="nav-badge career-nav-badge">IA</span></button>
         <button class="nav-item" data-view="audit"><i data-lucide="wand-sparkles"></i><span>Revisão assistida</span><span class="nav-badge danger" id="navAuditBadge">0</span></button>
         <button class="nav-item" data-view="report"><i data-lucide="clipboard-check"></i><span>XML corrigido</span><span class="nav-badge neon" id="navChangeBadge">0</span></button>
       </nav>
@@ -75,7 +77,7 @@
           </section>
           <section class="panel">
             <div class="panel-head"><div><div class="panel-kicker">COMPROVANTES</div><h3>Caixa acadêmica</h3></div><button class="text-btn" id="addEvidenceMini">Adicionar <i data-lucide="plus"></i></button></div>
-            <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx" hidden />
+            <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx" hidden />
             <div id="recentEvidence" class="evidence-mini empty-state"><i data-lucide="inbox"></i><p>Adicione certificados e PDFs. Eles entram na fila para comparação com seu Lattes.</p></div>
           </section>
         </div>
@@ -98,10 +100,20 @@
       </section>
 
       <section class="view" id="view-inbox">
-        <div class="section-intro"><div><div class="eyebrow">CAIXA ACADÊMICA</div><h2>Jogue seus comprovantes aqui.</h2><p>PDFs e textos são lidos localmente; imagens ficam prontas para a etapa de OCR/IA.</p></div><button class="btn primary" id="addEvidenceBtn"><i data-lucide="plus"></i>Adicionar arquivos</button></div>
-        <div class="dropzone" id="dropzone"><div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Arraste comprovantes para cá</h3><p>PDF, JPG, PNG, TXT, DOC ou DOCX • vários de uma vez</p><button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button></div>
+        <div class="section-intro"><div><div class="eyebrow">CAIXA ACADÊMICA</div><h2>Jogue sua vida acadêmica aqui.</h2><p>Print, certificado, PDF ou apenas o título de uma atividade. O Easy Lattes tenta transformar tudo em um registro revisável.</p></div><div class="intake-actions"><button class="btn ghost" id="manualEntryBtn"><i data-lucide="pencil-line"></i>Digitar atividade</button><button class="btn primary" id="addEvidenceBtn"><i data-lucide="plus"></i>Adicionar arquivos</button></div></div>
+        <div class="dropzone" id="dropzone"><div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Arraste comprovantes para cá</h3><p>PDF, print, JPG, PNG, TXT, DOC ou DOCX • vários de uma vez</p><button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button></div>
+        <section class="smart-intake-panel">
+          <div class="smart-intake-head"><div><div class="mini-label neon-text">ENTRADA INTELIGENTE</div><h3>O documento vira um registro para o Lattes.</h3><p>PDFs têm texto extraído no navegador; prints e imagens passam por OCR local. Você confere os campos antes de qualquer inclusão no XML.</p></div><div class="smart-intake-badge"><strong id="smartQueueCount">0</strong> para revisar</div></div>
+          <div class="smart-status" id="smartIntakeStatus"><i data-lucide="shield-check"></i><span>Processamento local ativo. A primeira leitura de imagem pode demorar um pouco porque o OCR é carregado no navegador.</span></div>
+          <div class="smart-queue" id="smartIntakeQueue"></div>
+        </section>
         <div class="inbox-toolbar"><div><strong id="inboxCount">0</strong> itens na caixa acadêmica</div><button class="btn ghost" id="clearEvidenceBtn"><i data-lucide="trash-2"></i>Limpar</button></div>
         <div class="evidence-list" id="evidenceList"><div class="empty-state roomy"><i data-lucide="folder-open"></i><p>Nenhum comprovante adicionado.</p></div></div>
+      </section>
+
+      <section class="view" id="view-career">
+        <div class="section-intro"><div><div class="eyebrow">ANÁLISE DE CARREIRA</div><h2>O que seu Lattes está dizendo sobre você?</h2><p>Forças, palavras-chave, equilíbrio da trajetória e pontos que merecem atenção.</p></div><button class="btn neon" data-go="inbox"><i data-lucide="plus"></i>Recuperar atividades faltantes</button></div>
+        <div id="careerContent"></div>
       </section>
 
       <section class="view" id="view-audit">
@@ -119,18 +131,41 @@
       </section>
 
       <section class="view" id="view-report">
-        <div class="section-intro"><div><div class="eyebrow">XML CORRIGIDO</div><h2>Sua nova versão está sendo construída.</h2><p>Cada decisão aprovada é aplicada em uma cópia do XML original. O arquivo original nunca é sobrescrito.</p></div><button class="btn neon" id="downloadXmlBtn" disabled><i data-lucide="download"></i>Baixar XML corrigido</button></div>
+        <div class="section-intro"><div><div class="eyebrow">XML CORRIGIDO</div><h2>Sua nova versão está sendo construída.</h2><p>Cada decisão aprovada e cada nova atividade confirmada é aplicada em uma cópia do XML original. O arquivo original nunca é sobrescrito.</p></div><button class="btn neon" id="downloadXmlBtn" disabled><i data-lucide="download"></i>Baixar XML corrigido</button></div>
         <div class="export-hero">
           <div class="export-shield"><i data-lucide="shield-check"></i></div>
           <div><div class="mini-label neon-text">ALTERAÇÕES APROVADAS</div><strong id="exportChangeCount">0</strong><p id="exportStatus">Nenhuma alteração aplicada ainda.</p></div>
           <div class="export-score"><span>Revisão concluída</span><strong id="exportProgress">0%</strong></div>
         </div>
-        <section class="panel full"><div class="panel-head"><div><div class="panel-kicker">HISTÓRICO</div><h3>O que o Easy Lattes mudou</h3></div></div><div class="change-list" id="changeList"><div class="empty-state"><i data-lucide="history"></i><p>As alterações aparecerão aqui conforme você aprovar as correções.</p></div></div></section>
+        <section class="panel full"><div class="panel-head"><div><div class="panel-kicker">HISTÓRICO</div><h3>O que o Easy Lattes mudou</h3></div></div><div class="change-list" id="changeList"><div class="empty-state"><i data-lucide="history"></i><p>As alterações aparecerão aqui conforme você aprovar as correções ou adicionar novas atividades.</p></div></div></section>
         <div class="disclaimer-box"><i data-lucide="info"></i><div><strong>Importante</strong><p>O Easy Lattes trabalha sobre uma cópia do XML fornecido pelo pesquisador. Antes de usar o arquivo na Plataforma Lattes, confira as alterações e utilize apenas os mecanismos de importação disponibilizados pelo CNPq no seu acesso.</p></div></div>
       </section>
     </main>
   </div>
+
+  <div class="intake-modal" id="intakeModal" hidden>
+    <div class="intake-dialog" role="dialog" aria-modal="true" aria-labelledby="intakeModalTitle">
+      <div class="intake-dialog-head"><div><div class="mini-label neon-text">REVISÃO ANTES DO XML</div><h3 id="intakeModalTitle">Confirme só o essencial.</h3><p>O sistema sugere. Você revisa. Só depois o registro entra na cópia do XML.</p><div class="intake-source">Origem: <span id="intakeSource">Entrada manual</span></div></div><button class="modal-close" id="intakeClose" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+      <div class="intake-form">
+        <div class="intake-field"><label>Tipo de atividade</label><select id="intakeType"><option value="apresentacao">Palestra / apresentação</option><option value="evento">Participação em evento</option><option value="curso">Curso / minicurso ministrado</option><option value="organizacao">Organização de evento</option><option value="banca">Participação em banca</option><option value="premio">Prêmio / título</option><option value="outra">Outra produção técnica</option></select></div>
+        <div class="intake-field"><label>Ano</label><input id="intakeYear" inputmode="numeric" placeholder="2026"></div>
+        <div class="intake-field wide"><label>Título / tema</label><input id="intakeTitle" placeholder="Título da palestra, trabalho, curso, banca..."></div>
+        <div class="intake-field"><label>Instituição promotora</label><input id="intakeInstitution" placeholder="UNEMAT, universidade, instituto..."></div>
+        <div class="intake-field"><label>Evento / curso / programa</label><input id="intakeEvent" placeholder="Nome do evento ou curso"></div>
+        <div class="intake-field"><label>Papel / natureza</label><input id="intakeRole" placeholder="Palestrante, participante, organizador..."></div>
+        <div class="intake-field"><label>Carga horária</label><input id="intakeHours" inputmode="numeric" placeholder="ex.: 4"></div>
+        <div class="intake-field"><label>Pessoa avaliada (se banca)</label><input id="intakePerson" placeholder="Nome do candidato/aluno"></div>
+        <div class="intake-field"><label>Local</label><input id="intakeLocal" placeholder="Campus, auditório, online..."></div>
+        <div class="intake-field"><label>Cidade</label><input id="intakeCity" placeholder="Cáceres, Sinop..."></div>
+        <div class="intake-field wide"><label>Observações</label><textarea id="intakeNotes" placeholder="Qualquer detalhe que ajude na conferência"></textarea></div>
+      </div>
+      <div class="intake-dialog-actions"><div class="modal-note">O registro é inserido somente na cópia local do XML. O arquivo original permanece intacto.</div><div class="intake-actions"><button class="btn ghost" id="intakeCancel">Cancelar</button><button class="btn neon" id="intakeConfirm"><i data-lucide="file-plus-2"></i>Adicionar à cópia do XML</button></div></div>
+    </div>
+  </div>
+
   <div class="toast-stack" id="toastStack"></div>
-  <script src="app-v2.js?v=20260917-0825" type="module"></script>
+  <script src="bridge-v3.js?v=20260917-0900"></script>
+  <script src="app-v2.js?v=20260917-0900" type="module"></script>
+  <script src="career-v3.js?v=20260917-0900" type="module"></script>
 </body>
 </html>
