@@ -16,7 +16,7 @@
   };
 
   window.addEventListener('load', () => {
-    const version = '20260917-1205';
+    const version = '20260917-1045';
     const addStyle = (key, href) => {
       if (document.querySelector(`link[data-${key}]`)) return;
       const link = document.createElement('link');
@@ -41,5 +41,7 @@
     addScript('easy-career-v4', 'career-v4.js', true);
     addStyle('easy-discovery-v5', 'discovery-v5.css');
     addScript('easy-discovery-v5', 'discovery-v5.js', true);
+    addStyle('easy-career-deep-v7', 'career-deep-v7.css');
+    addScript('easy-career-deep-v7', 'career-deep-v7.js');
   });
 })();
