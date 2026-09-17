@@ -3,50 +3,41 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b1020" />
-  <meta name="description" content="MVP de copiloto acadêmico para auditoria e organização do Currículo Lattes." />
-  <title>Easy Lattes — MVP Professor</title>
+  <meta name="theme-color" content="#07101f" />
+  <meta name="description" content="Easy Lattes — revisão assistida e organização do Currículo Lattes." />
+  <title>Easy Lattes — revisão assistida</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">C</div>
-        <div>
-          <div class="brand-name">Easy Lattes</div>
-          <div class="brand-sub">MVP Professor</div>
-        </div>
+        <div class="brand-mark">EL</div>
+        <div><div class="brand-name">Easy Lattes</div><div class="brand-sub">MVP Professor</div></div>
       </div>
-
       <nav class="nav-list" aria-label="Navegação principal">
         <button class="nav-item active" data-view="dashboard"><i data-lucide="layout-dashboard"></i><span>Visão geral</span></button>
         <button class="nav-item" data-view="lattes"><i data-lucide="file-user"></i><span>Meu Lattes</span></button>
         <button class="nav-item" data-view="inbox"><i data-lucide="inbox"></i><span>Caixa acadêmica</span><span class="nav-badge" id="navEvidenceBadge">0</span></button>
-        <button class="nav-item" data-view="audit"><i data-lucide="scan-search"></i><span>Auditoria</span><span class="nav-badge danger" id="navAuditBadge">0</span></button>
-        <button class="nav-item" data-view="report"><i data-lucide="clipboard-list"></i><span>Relatório</span></button>
+        <button class="nav-item" data-view="audit"><i data-lucide="wand-sparkles"></i><span>Revisão assistida</span><span class="nav-badge danger" id="navAuditBadge">0</span></button>
+        <button class="nav-item" data-view="report"><i data-lucide="clipboard-check"></i><span>XML corrigido</span><span class="nav-badge neon" id="navChangeBadge">0</span></button>
       </nav>
-
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-card">
+      <div class="sidebar-card neon-card">
         <div class="mini-label">PRIVACIDADE</div>
-        <div class="sidebar-card-title">Processamento local</div>
-        <p>Neste MVP, XML e comprovantes ficam no seu navegador. Nenhuma senha do CNPq é solicitada.</p>
+        <div class="sidebar-card-title">Seu currículo fica com você.</div>
+        <p>XML e comprovantes são processados no navegador. Nenhuma senha do CNPq é solicitada.</p>
       </div>
       <div class="sidebar-footer">Protótipo independente • não oficial CNPq</div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <div class="eyebrow">COPILOTO DA VIDA ACADÊMICA</div>
-          <h1 id="pageTitle">Seu currículo, sob controle.</h1>
-        </div>
+        <div><div class="eyebrow">COPILOTO DA VIDA ACADÊMICA</div><h1 id="pageTitle">Seu currículo, sob controle.</h1></div>
         <div class="top-actions">
           <button class="btn ghost" id="demoBtn"><i data-lucide="sparkles"></i>Carregar demo</button>
           <button class="btn primary" id="openXmlBtn"><i data-lucide="upload"></i>Importar XML do Lattes</button>
@@ -58,56 +49,44 @@
         <div class="hero-card">
           <div class="hero-copy">
             <div class="status-pill neutral" id="heroStatus"><span class="dot"></span>Envie seu XML para começar</div>
-            <h2 id="heroHeadline">Pare de preencher o Lattes no susto.</h2>
-            <p id="heroText">Importe seu XML, envie comprovantes e deixe o sistema apontar o que falta, o que está incompleto e o que pode estar duplicado.</p>
+            <h2 id="heroHeadline">Menos formulário. Mais currículo pronto.</h2>
+            <p id="heroText">O Easy Lattes lê o XML, encontra o que merece revisão e transforma a auditoria em uma fila de decisões rápidas.</p>
             <div class="hero-actions">
               <button class="btn primary large" id="heroXmlBtn"><i data-lucide="file-up"></i>Importar meu XML</button>
-              <button class="btn secondary large" id="heroEvidenceBtn"><i data-lucide="files"></i>Adicionar comprovantes</button>
-              <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx" hidden />
+              <button class="btn neon large" id="startReviewBtn"><i data-lucide="wand-sparkles"></i>Começar revisão</button>
             </div>
           </div>
           <div class="score-ring-wrap">
-            <div class="score-ring" id="scoreRing" style="--score:0">
-              <div class="score-inner"><strong id="scoreValue">—</strong><span>em dia</span></div>
-            </div>
+            <div class="score-ring" id="scoreRing" style="--score:0"><div class="score-inner"><strong id="scoreValue">—</strong><span>em dia</span></div></div>
             <div class="score-caption" id="scoreCaption">Sem análise ainda</div>
           </div>
         </div>
-
         <div class="stats-grid">
-          <article class="stat-card"><div class="stat-icon"><i data-lucide="book-open"></i></div><div><span>Produções lidas</span><strong id="statProductions">0</strong><small id="statProductionsSub">aguardando XML</small></div></article>
-          <article class="stat-card"><div class="stat-icon"><i data-lucide="triangle-alert"></i></div><div><span>Pendências</span><strong id="statIssues">0</strong><small id="statIssuesSub">auditoria automática</small></div></article>
-          <article class="stat-card"><div class="stat-icon"><i data-lucide="paperclip"></i></div><div><span>Comprovantes</span><strong id="statEvidence">0</strong><small id="statEvidenceSub">na caixa acadêmica</small></div></article>
-          <article class="stat-card"><div class="stat-icon"><i data-lucide="copy-check"></i></div><div><span>Possíveis duplicados</span><strong id="statDuplicates">0</strong><small>revisão recomendada</small></div></article>
+          <article class="stat-card"><div class="stat-icon"><i data-lucide="book-open"></i></div><div><span>Produções lidas</span><strong id="statProductions">0</strong><small>do XML importado</small></div></article>
+          <article class="stat-card"><div class="stat-icon"><i data-lucide="triangle-alert"></i></div><div><span>Para revisar</span><strong id="statIssues">0</strong><small>fila inteligente</small></div></article>
+          <article class="stat-card"><div class="stat-icon neon-icon"><i data-lucide="check-check"></i></div><div><span>Correções aprovadas</span><strong id="statChanges">0</strong><small>já aplicadas à cópia</small></div></article>
+          <article class="stat-card"><div class="stat-icon"><i data-lucide="copy-check"></i></div><div><span>Possíveis duplicados</span><strong id="statDuplicates">0</strong><small>mesmo tipo + título + ano</small></div></article>
         </div>
-
         <div class="two-col">
           <section class="panel">
-            <div class="panel-head"><div><div class="panel-kicker">PRIORIDADE</div><h3>O que precisa da sua atenção</h3></div><button class="text-btn" data-go="audit">Ver auditoria <i data-lucide="arrow-right"></i></button></div>
-            <div id="priorityList" class="priority-list empty-state">
-              <i data-lucide="scan-search"></i>
-              <p>Importe o XML do Lattes para gerar sua primeira auditoria.</p>
-            </div>
+            <div class="panel-head"><div><div class="panel-kicker">PRÓXIMA AÇÃO</div><h3>O Easy Lattes já preparou isso</h3></div><button class="text-btn" data-go="audit">Abrir revisão <i data-lucide="arrow-right"></i></button></div>
+            <div id="priorityList" class="priority-list empty-state"><i data-lucide="scan-search"></i><p>Importe o XML para gerar sua fila de revisão.</p></div>
           </section>
-
           <section class="panel">
-            <div class="panel-head"><div><div class="panel-kicker">CAIXA ACADÊMICA</div><h3>Comprovantes recentes</h3></div><button class="text-btn" id="addEvidenceMini">Adicionar <i data-lucide="plus"></i></button></div>
-            <div id="recentEvidence" class="evidence-mini empty-state">
-              <i data-lucide="inbox"></i>
-              <p>Arraste certificados, PDFs ou imagens. O sistema tenta classificar cada item.</p>
-            </div>
+            <div class="panel-head"><div><div class="panel-kicker">COMPROVANTES</div><h3>Caixa acadêmica</h3></div><button class="text-btn" id="addEvidenceMini">Adicionar <i data-lucide="plus"></i></button></div>
+            <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.txt,.doc,.docx" hidden />
+            <div id="recentEvidence" class="evidence-mini empty-state"><i data-lucide="inbox"></i><p>Adicione certificados e PDFs. Eles entram na fila para comparação com seu Lattes.</p></div>
           </section>
         </div>
       </section>
 
       <section class="view" id="view-lattes">
         <div class="section-intro">
-          <div><div class="eyebrow">MEU LATTES</div><h2>O que o seu XML contém</h2><p>Leitura do arquivo fornecido pelo próprio pesquisador. Nada é alterado automaticamente no CNPq.</p></div>
+          <div><div class="eyebrow">MEU LATTES</div><h2>Seu currículo, decodificado.</h2><p>Veja o que foi identificado no XML e filtre produções rapidamente.</p></div>
           <button class="btn primary" id="replaceXmlBtn"><i data-lucide="refresh-cw"></i>Trocar XML</button>
         </div>
-        <div class="profile-card" id="profileCard">
-          <div class="avatar">?</div>
-          <div class="profile-main"><div class="mini-label">PESQUISADOR</div><h3 id="researcherName">Nenhum XML carregado</h3><p id="researcherMeta">Importe o currículo para visualizar os dados.</p></div>
+        <div class="profile-card">
+          <div class="avatar">?</div><div class="profile-main"><div class="mini-label">PESQUISADOR</div><h3 id="researcherName">Nenhum XML carregado</h3><p id="researcherMeta">Importe o currículo para visualizar os dados.</p></div>
           <div class="profile-side"><span id="lastUpdateLabel">Última atualização: —</span><span id="xmlFileLabel">Arquivo: —</span></div>
         </div>
         <div class="category-grid" id="categoryGrid"></div>
@@ -118,52 +97,38 @@
       </section>
 
       <section class="view" id="view-inbox">
-        <div class="section-intro">
-          <div><div class="eyebrow">CAIXA ACADÊMICA</div><h2>Jogue seus comprovantes aqui.</h2><p>PDFs e arquivos de texto são analisados localmente por regras. Imagens entram na fila para futura análise por IA/OCR.</p></div>
-          <button class="btn primary" id="addEvidenceBtn"><i data-lucide="plus"></i>Adicionar arquivos</button>
-        </div>
-        <div class="dropzone" id="dropzone">
-          <div class="drop-icon"><i data-lucide="cloud-upload"></i></div>
-          <h3>Arraste comprovantes para cá</h3>
-          <p>PDF, JPG, PNG, TXT, DOC ou DOCX • vários de uma vez</p>
-          <button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button>
-        </div>
-        <div class="inbox-toolbar"><div><strong id="inboxCount">0</strong> itens na caixa acadêmica</div><div class="toolbar-actions"><select id="evidenceFilter" class="select"><option value="all">Todos</option><option value="new">Novos</option><option value="matched">Possível correspondência</option><option value="review">Revisar</option></select><button class="btn ghost" id="clearEvidenceBtn"><i data-lucide="trash-2"></i>Limpar</button></div></div>
+        <div class="section-intro"><div><div class="eyebrow">CAIXA ACADÊMICA</div><h2>Jogue seus comprovantes aqui.</h2><p>PDFs e textos são lidos localmente; imagens ficam prontas para a etapa de OCR/IA.</p></div><button class="btn primary" id="addEvidenceBtn"><i data-lucide="plus"></i>Adicionar arquivos</button></div>
+        <div class="dropzone" id="dropzone"><div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Arraste comprovantes para cá</h3><p>PDF, JPG, PNG, TXT, DOC ou DOCX • vários de uma vez</p><button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button></div>
+        <div class="inbox-toolbar"><div><strong id="inboxCount">0</strong> itens na caixa acadêmica</div><button class="btn ghost" id="clearEvidenceBtn"><i data-lucide="trash-2"></i>Limpar</button></div>
         <div class="evidence-list" id="evidenceList"><div class="empty-state roomy"><i data-lucide="folder-open"></i><p>Nenhum comprovante adicionado.</p></div></div>
       </section>
 
       <section class="view" id="view-audit">
-        <div class="section-intro">
-          <div><div class="eyebrow">AUDITORIA</div><h2>Onde seu currículo merece revisão</h2><p>Alertas são heurísticos e precisam de conferência humana antes de qualquer atualização.</p></div>
-          <button class="btn secondary" id="rerunAuditBtn"><i data-lucide="scan-line"></i>Rodar auditoria</button>
+        <div class="section-intro review-intro">
+          <div><div class="eyebrow">REVISÃO ASSISTIDA</div><h2>Você só decide. O sistema prepara.</h2><p>Um problema por vez, com proposta de correção e atualização da cópia do XML.</p></div>
+          <div class="review-top-actions"><button class="btn ghost" id="rerunAuditBtn"><i data-lucide="scan-line"></i>Reanalisar</button><button class="btn neon" id="safeFixBtn"><i data-lucide="zap"></i>Aplicar correções seguras</button></div>
         </div>
-        <div class="audit-summary" id="auditSummary">
-          <div class="audit-score"><strong id="auditScore">—</strong><span>índice de completude</span></div>
-          <div class="audit-bars" id="auditBars"></div>
+        <div class="review-progress-card">
+          <div><div class="mini-label neon-text">MODO REVISÃO RÁPIDA</div><h3 id="reviewProgressTitle">Importe um XML para começar</h3><p id="reviewProgressText">As correções aprovadas serão aplicadas em uma cópia local do seu XML.</p></div>
+          <div class="review-progress-right"><strong id="reviewProgressPct">0%</strong><div class="review-track"><span id="reviewProgressBar" style="width:0%"></span></div></div>
         </div>
-        <div class="audit-controls"><div class="segmented" id="auditSegments"><button class="active" data-severity="all">Todos</button><button data-severity="high">Críticos</button><button data-severity="medium">Atenção</button><button data-severity="low">Sugestões</button></div></div>
-        <div class="audit-list" id="auditList"><div class="empty-state roomy"><i data-lucide="shield-check"></i><p>Importe um XML para gerar alertas.</p></div></div>
+        <div id="reviewWorkspace" class="review-workspace empty-state roomy"><i data-lucide="wand-sparkles"></i><p>Sua fila de revisão aparecerá aqui.</p></div>
+        <div class="review-nav" id="reviewNav" hidden><button class="btn ghost" id="prevIssueBtn"><i data-lucide="arrow-left"></i>Anterior</button><div id="reviewDots" class="review-dots"></div><button class="btn ghost" id="nextIssueBtn">Próximo<i data-lucide="arrow-right"></i></button></div>
+        <details class="all-alerts"><summary>Ver todos os alertas <span id="allAlertsCount">0</span></summary><div class="audit-list compact" id="auditList"></div></details>
       </section>
 
       <section class="view" id="view-report">
-        <div class="section-intro">
-          <div><div class="eyebrow">RELATÓRIO</div><h2>Resumo para revisão do pesquisador</h2><p>Exporte um relatório com produções lidas, pendências e comprovantes adicionados.</p></div>
-          <button class="btn primary" id="downloadReportBtn"><i data-lucide="download"></i>Baixar relatório .CSV</button>
+        <div class="section-intro"><div><div class="eyebrow">XML CORRIGIDO</div><h2>Sua nova versão está sendo construída.</h2><p>Cada decisão aprovada é aplicada em uma cópia do XML original. O arquivo original nunca é sobrescrito.</p></div><button class="btn neon" id="downloadXmlBtn" disabled><i data-lucide="download"></i>Baixar XML corrigido</button></div>
+        <div class="export-hero">
+          <div class="export-shield"><i data-lucide="shield-check"></i></div>
+          <div><div class="mini-label neon-text">ALTERAÇÕES APROVADAS</div><strong id="exportChangeCount">0</strong><p id="exportStatus">Nenhuma alteração aplicada ainda.</p></div>
+          <div class="export-score"><span>Revisão concluída</span><strong id="exportProgress">0%</strong></div>
         </div>
-        <div class="report-grid">
-          <section class="panel report-card"><div class="report-number" id="reportCompleteness">—</div><span>Completude estimada</span></section>
-          <section class="panel report-card"><div class="report-number" id="reportIssues">0</div><span>Pendências abertas</span></section>
-          <section class="panel report-card"><div class="report-number" id="reportEvidence">0</div><span>Comprovantes recebidos</span></section>
-        </div>
-        <section class="panel full">
-          <div class="panel-head"><div><div class="panel-kicker">PRÓXIMAS AÇÕES</div><h3>Checklist sugerido</h3></div></div>
-          <div class="checklist" id="reportChecklist"><div class="empty-state"><i data-lucide="clipboard-check"></i><p>O checklist aparecerá após a análise.</p></div></div>
-        </section>
-        <div class="disclaimer-box"><i data-lucide="info"></i><div><strong>Importante</strong><p>Este MVP não acessa nem altera o Currículo Lattes no CNPq. O pesquisador continua responsável por conferir os dados e realizar qualquer atualização na plataforma oficial.</p></div></div>
+        <section class="panel full"><div class="panel-head"><div><div class="panel-kicker">HISTÓRICO</div><h3>O que o Easy Lattes mudou</h3></div></div><div class="change-list" id="changeList"><div class="empty-state"><i data-lucide="history"></i><p>As alterações aparecerão aqui conforme você aprovar as correções.</p></div></div></section>
+        <div class="disclaimer-box"><i data-lucide="info"></i><div><strong>Importante</strong><p>O Easy Lattes trabalha sobre uma cópia do XML fornecido pelo pesquisador. Antes de usar o arquivo na Plataforma Lattes, confira as alterações e utilize apenas os mecanismos de importação disponibilizados pelo CNPq no seu acesso.</p></div></div>
       </section>
     </main>
   </div>
-
   <div class="toast-stack" id="toastStack"></div>
   <script src="app.js" type="module"></script>
 </body>
