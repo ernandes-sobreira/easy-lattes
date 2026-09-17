@@ -2,7 +2,7 @@
   "name": "easy-lattes-functions",
   "private": true,
   "engines": {"node": "20"},
-  "main": "index.js",
+  "main": "bootstrap.js",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions"
