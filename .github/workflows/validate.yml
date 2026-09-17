@@ -38,3 +38,5 @@ jobs:
       - name: Validate Firebase backend
         working-directory: functions
         run: node --check index.js
+
+# v6: validates the current production-facing state after platform/backend hardening.
