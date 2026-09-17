@@ -16,7 +16,7 @@
   };
 
   window.addEventListener('load', () => {
-    const version = '20260917-1015';
+    const version = '20260917-1045';
     if (!document.querySelector('link[data-easy-career-v4]')) {
       const link = document.createElement('link');
       link.rel = 'stylesheet';
@@ -29,6 +29,20 @@
       script.src = `career-v4.js?v=${version}`;
       script.type = 'module';
       script.dataset.easyCareerV4 = '1';
+      document.body.appendChild(script);
+    }
+    if (!document.querySelector('link[data-easy-discovery-v5]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `discovery-v5.css?v=${version}`;
+      link.dataset.easyDiscoveryV5 = '1';
+      document.head.appendChild(link);
+    }
+    if (!document.querySelector('script[data-easy-discovery-v5]')) {
+      const script = document.createElement('script');
+      script.src = `discovery-v5.js?v=${version}`;
+      script.type = 'module';
+      script.dataset.easyDiscoveryV5 = '1';
       document.body.appendChild(script);
     }
   });
