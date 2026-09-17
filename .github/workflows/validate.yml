@@ -1,0 +1,40 @@
+name: Validate Easy Lattes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate browser JavaScript
+        run: |
+          node --check app-v2.js
+          node --check bridge-v3.js
+          node --check career-v3.js
+          node --check career-v4.js
+          node --check discovery-v5.js
+          node --check platform-v6.js
+          node --check identity-v6.js
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Validate Firebase backend
+        working-directory: functions
+        run: node --check index.js
