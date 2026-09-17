@@ -16,7 +16,7 @@
   };
 
   window.addEventListener('load', () => {
-    const version = '20260917-1145';
+    const version = '20260917-1205';
     const addStyle = (key, href) => {
       if (document.querySelector(`link[data-${key}]`)) return;
       const link = document.createElement('link');
@@ -36,6 +36,7 @@
 
     addStyle('easy-platform-v6', 'platform-v6.css');
     addScript('easy-platform-v6', 'platform-v6.js');
+    addScript('easy-identity-v6', 'identity-v6.js');
     addStyle('easy-career-v4', 'career-v4.css');
     addScript('easy-career-v4', 'career-v4.js', true);
     addStyle('easy-discovery-v5', 'discovery-v5.css');
