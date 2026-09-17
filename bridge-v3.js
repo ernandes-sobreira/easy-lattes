@@ -16,34 +16,29 @@
   };
 
   window.addEventListener('load', () => {
-    const version = '20260917-1045';
-    if (!document.querySelector('link[data-easy-career-v4]')) {
+    const version = '20260917-1145';
+    const addStyle = (key, href) => {
+      if (document.querySelector(`link[data-${key}]`)) return;
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = `career-v4.css?v=${version}`;
-      link.dataset.easyCareerV4 = '1';
+      link.href = `${href}?v=${version}`;
+      link.setAttribute(`data-${key}`, '1');
       document.head.appendChild(link);
-    }
-    if (!document.querySelector('script[data-easy-career-v4]')) {
+    };
+    const addScript = (key, src, module = false) => {
+      if (document.querySelector(`script[data-${key}]`)) return;
       const script = document.createElement('script');
-      script.src = `career-v4.js?v=${version}`;
-      script.type = 'module';
-      script.dataset.easyCareerV4 = '1';
+      script.src = `${src}?v=${version}`;
+      if (module) script.type = 'module';
+      script.setAttribute(`data-${key}`, '1');
       document.body.appendChild(script);
-    }
-    if (!document.querySelector('link[data-easy-discovery-v5]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = `discovery-v5.css?v=${version}`;
-      link.dataset.easyDiscoveryV5 = '1';
-      document.head.appendChild(link);
-    }
-    if (!document.querySelector('script[data-easy-discovery-v5]')) {
-      const script = document.createElement('script');
-      script.src = `discovery-v5.js?v=${version}`;
-      script.type = 'module';
-      script.dataset.easyDiscoveryV5 = '1';
-      document.body.appendChild(script);
-    }
+    };
+
+    addStyle('easy-platform-v6', 'platform-v6.css');
+    addScript('easy-platform-v6', 'platform-v6.js');
+    addStyle('easy-career-v4', 'career-v4.css');
+    addScript('easy-career-v4', 'career-v4.js', true);
+    addStyle('easy-discovery-v5', 'discovery-v5.css');
+    addScript('easy-discovery-v5', 'discovery-v5.js', true);
   });
 })();
