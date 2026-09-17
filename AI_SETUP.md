@@ -3,7 +3,7 @@
 O Easy Lattes funciona em duas camadas:
 
 1. **Local, sem API:** XML, auditoria, revisão assistida, Caixa Acadêmica, OCR/PDF quando suportado, Crossref/OpenAlex e análise descritiva.
-2. **Backend protegido:** análise generativa e busca ampla em fontes públicas.
+2. **Backend protegido:** análise generativa, análise profunda e busca ampla em fontes públicas.
 
 A chave da OpenAI **nunca deve ficar no GitHub Pages**.
 
@@ -11,10 +11,11 @@ A chave da OpenAI **nunca deve ficar no GitHub Pages**.
 
 GitHub Pages → Firebase HTTPS Functions → OpenAI Responses API
 
-O backend está em `functions/index.js` e publica três funções:
+O backend é carregado por `functions/bootstrap.js` e publica quatro funções:
 
 - `health`: informa ao próprio Easy Lattes se o backend está online;
-- `careerAnalysis`: recebe apenas um resumo acadêmico estruturado do currículo e gera a análise de carreira;
+- `careerAnalysis`: análise generativa econômica a partir de um resumo estruturado do currículo;
+- `careerAnalysisDeep`: modo consultoria, com identidade profissional, evidências, forças, oportunidades, plano de 90 dias e revisão de pistas públicas ainda não confirmadas;
 - `webDiscovery`: usa pesquisa web para encontrar possíveis atividades acadêmicas públicas esquecidas, sempre com revisão humana antes de qualquer inclusão.
 
 O backend também tenta usar Firestore para cache e limites de uso. Se o Firestore ainda não estiver disponível, as funções continuam funcionando, mas sem esses controles adicionais.
@@ -38,7 +39,7 @@ firebase use SEU_PROJECT_ID
 cd functions
 npm install
 cd ..
-firebase deploy --only functions:health,functions:careerAnalysis,functions:webDiscovery
+firebase deploy --only functions:health,functions:careerAnalysis,functions:careerAnalysisDeep,functions:webDiscovery
 ```
 
 O `firebase.json` do repositório já aponta para `functions/` e Node.js 20.
@@ -53,13 +54,7 @@ Cole somente o **ID do projeto Firebase**, por exemplo:
 meu-easy-lattes-123
 ```
 
-A própria plataforma monta os endereços:
-
-```text
-https://southamerica-east1-SEU_PROJECT_ID.cloudfunctions.net/health
-https://southamerica-east1-SEU_PROJECT_ID.cloudfunctions.net/careerAnalysis
-https://southamerica-east1-SEU_PROJECT_ID.cloudfunctions.net/webDiscovery
-```
+A própria plataforma monta os endereços principais. A análise profunda usa o mesmo projeto e o endpoint `careerAnalysisDeep` automaticamente.
 
 Clique **Salvar e testar**. Quando a tela mostrar o backend como online, a ativação acabou. O ID fica salvo no navegador.
 
@@ -67,16 +62,19 @@ Clique **Salvar e testar**. Quando a tela mostrar o backend como online, a ativa
 
 - análise local: sem chamada de IA;
 - análise generativa: GPT-5.6 Luna por padrão;
+- análise profunda: GPT-5.6 Luna por padrão, com raciocínio maior e limite de 3 novas análises por cliente/dia quando Firestore está disponível;
 - busca ampla: GPT-5.6 Luna + ferramenta de busca web;
-- resultados iguais podem ser reutilizados do cache;
-- análise de carreira: limite de 5 novas chamadas por cliente/dia quando o Firestore está disponível;
-- descoberta ampla: limite de 3 novas varreduras por cliente/dia quando o Firestore está disponível;
+- resultados idênticos podem ser reutilizados do cache;
+- análise de carreira padrão: limite de 5 novas chamadas por cliente/dia;
+- descoberta ampla: limite de 3 novas varreduras por cliente/dia;
 - o backend retorna tokens e custo estimado de cada operação para futura telemetria administrativa;
-- `gpt-5.6-terra` ou `gpt-5.6-sol` podem ser usados depois para um plano premium definindo `EASY_LATTES_MODEL` no ambiente da função.
+- modelos mais caros podem ser reservados depois para um plano premium por variável de ambiente.
 
 ## Privacidade
 
 A análise de carreira não precisa enviar o XML bruto. O navegador prepara contagens, áreas, palavras-chave, recorte temporal e amostras de títulos.
+
+A análise profunda pode receber também até 12 **pistas públicas** já encontradas pelo módulo Descobertas. Elas são marcadas para a IA como não confirmadas e não podem ser tratadas como fatos do currículo.
 
 A busca pública foi instruída a procurar apenas informação acadêmica/profissional publicamente acessível, como palestras, eventos, cursos, bancas, docência pública, prêmios e projetos. Ela não deve procurar dados pessoais ou sensíveis.
 
