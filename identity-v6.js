@@ -24,4 +24,13 @@
     } catch (_) {}
     return previousFetch(input, init);
   };
+
+  const version = '20260917-1345';
+  function addStyle(href,key){if(document.querySelector(`link[data-${key}]`))return;const l=document.createElement('link');l.rel='stylesheet';l.href=`${href}?v=${version}`;l.setAttribute(`data-${key}`,'1');document.head.appendChild(l)}
+  function addScript(src,key){if(document.querySelector(`script[data-${key}]`))return;const s=document.createElement('script');s.src=`${src}?v=${version}`;s.setAttribute(`data-${key}`,'1');document.body.appendChild(s)}
+  window.addEventListener('load',()=>{
+    addStyle('academic-v8.css','easy-academic-v8');
+    addScript('academic-v8.js','easy-academic-v8');
+    addScript('intake-v8.js','easy-intake-v8');
+  });
 })();
