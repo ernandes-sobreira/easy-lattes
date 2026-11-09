@@ -24,6 +24,7 @@
 .stage1-saved-row small{font-size:11px;color:#667085}
 @media(max-width:760px){.stage1-panel-head,.stage1-saved-row{flex-direction:column;align-items:stretch}.hero-actions{flex-wrap:wrap}}
  .article-fields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.article-fields[hidden]{display:none}.article-fields .wide{grid-column:1/-1}@media(max-width:600px){.article-fields{grid-template-columns:1fr}}
+ .cloud-account{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.cloud-account span{font-size:11px;color:#667085;max-width:200px;overflow:hidden;text-overflow:ellipsis}.cloud-status{font-size:12px;color:#667085;margin:0 0 12px}.cloud-account button[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -54,6 +55,11 @@
       <header class="topbar">
         <div><div class="eyebrow">COPILOTO DA VIDA ACADÊMICA</div><h1 id="pageTitle">Seu currículo, sob controle.</h1></div>
         <div class="top-actions">
+          <div class="cloud-account" aria-label="Sincronização e conta">
+            <span id="cloudAccount">Sem conta conectada</span>
+            <button class="btn ghost" id="cloudSignIn" type="button">Entrar com Google</button>
+            <button class="btn ghost" id="cloudSignOut" type="button" hidden>Sair</button>
+          </div>
           <button class="btn ghost" id="demoBtn"><i data-lucide="sparkles"></i>Carregar demo</button>
           <button class="btn primary" id="openXmlBtn"><i data-lucide="upload"></i>Importar XML do Lattes</button>
           <input type="file" id="xmlInput" accept=".xml,text/xml,application/xml" hidden />
@@ -78,10 +84,11 @@
             <div class="score-caption" id="scoreCaption">Sem análise ainda</div>
           </div>
         </div>
+        <p class="cloud-status" id="cloudStatus" role="status">Verificando configuração da sincronização...</p>
         <section class="stage1-panel" aria-labelledby="stage1Title">
           <div class="stage1-panel-head">
             <div><div class="panel-kicker">ETAPA 1 · CADASTRO SIMPLES</div><h3 id="stage1Title">Atividades confirmadas neste dispositivo: <span id="stage1SavedCount">0</span></h3>
-            <p>O reconhecimento é uma sugestão automática por regras e OCR, não uma conferência por IA generativa. Revise antes de confirmar. Os dados ficam somente neste navegador e podem ser perdidos se você limpar seus dados.</p></div>
+            <p>O reconhecimento é uma sugestão automática por regras e OCR, não uma conferência por IA generativa. Revise antes de confirmar. Sem configurar o Firebase, os dados ficam somente neste navegador e podem ser perdidos se você limpar seus dados.</p></div>
             <button class="btn ghost" id="stage1Export" type="button"><i data-lucide="download"></i>Exportar meus registros</button>
           </div>
           <div id="stage1SavedList"></div>
@@ -196,6 +203,7 @@
   <div class="toast-stack" id="toastStack"></div>
   <script src="bridge-v3.js?v=20260917-1200"></script>
   <script src="app-v2.js?v=20260917-1200" type="module"></script>
-  <script src="career-v3.js?v=20261109-2" type="module"></script>
+  <script src="career-v3.js?v=20261109-3" type="module"></script>
+  <script src="cloud-v1.js?v=20261109-1" type="module"></script>
 </body>
 </html>
