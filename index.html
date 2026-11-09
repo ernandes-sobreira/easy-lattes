@@ -23,6 +23,7 @@
 .stage1-saved-row strong{font-size:13px;overflow-wrap:anywhere}
 .stage1-saved-row small{font-size:11px;color:#667085}
 @media(max-width:760px){.stage1-panel-head,.stage1-saved-row{flex-direction:column;align-items:stretch}.hero-actions{flex-wrap:wrap}}
+ .article-fields{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.article-fields[hidden]{display:none}.article-fields .wide{grid-column:1/-1}@media(max-width:600px){.article-fields{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -168,7 +169,7 @@
     <div class="intake-dialog" role="dialog" aria-modal="true" aria-labelledby="intakeModalTitle">
       <div class="intake-dialog-head"><div><div class="mini-label neon-text">REVISÃO ANTES DO XML</div><h3 id="intakeModalTitle">Confirme só o essencial.</h3><p>O sistema sugere. Você revisa. Só depois o registro entra na cópia do XML.</p><div class="intake-source">Origem: <span id="intakeSource">Entrada manual</span></div></div><button class="modal-close" id="intakeClose" aria-label="Fechar"><i data-lucide="x"></i></button></div>
       <div class="intake-form">
-        <div class="intake-field"><label>Tipo de atividade</label><select id="intakeType"><option value="apresentacao">Palestra / apresentação</option><option value="evento">Participação em evento</option><option value="curso">Curso / minicurso ministrado</option><option value="organizacao">Organização de evento</option><option value="banca">Participação em banca</option><option value="premio">Prêmio / título</option><option value="outra">Outra produção técnica</option></select></div>
+        <div class="intake-field"><label>Tipo de atividade</label><select id="intakeType"><option value="artigo">Artigo científico</option><option value="apresentacao">Palestra / apresentação</option><option value="evento">Participação em evento</option><option value="curso">Curso / minicurso ministrado</option><option value="organizacao">Organização de evento</option><option value="banca">Participação em banca</option><option value="premio">Prêmio / título</option><option value="outra">Outra produção técnica</option></select></div>
         <div class="intake-field"><label>Ano</label><input id="intakeYear" inputmode="numeric" placeholder="2026"></div>
         <div class="intake-field wide"><label>Título / tema</label><input id="intakeTitle" placeholder="Título da palestra, trabalho, curso, banca..."></div>
         <div class="intake-field"><label>Instituição promotora</label><input id="intakeInstitution" placeholder="UNEMAT, universidade, instituto..."></div>
@@ -178,6 +179,14 @@
         <div class="intake-field"><label>Pessoa avaliada (se banca)</label><input id="intakePerson" placeholder="Nome do candidato/aluno"></div>
         <div class="intake-field"><label>Local</label><input id="intakeLocal" placeholder="Campus, auditório, online..."></div>
         <div class="intake-field"><label>Cidade</label><input id="intakeCity" placeholder="Cáceres, Sinop..."></div>
+        <div id="articleFields" class="article-fields" hidden>
+          <div class="intake-field wide"><label>Periódico</label><input id="intakeJournal" placeholder="Nome da revista"></div>
+          <div class="intake-field wide"><label>Autores (separados por ponto e vírgula)</label><textarea id="intakeAuthors" rows="3"></textarea></div>
+          <div class="intake-field"><label>DOI</label><input id="intakeDoi" placeholder="Não identificado"></div>
+          <div class="intake-field"><label>Volume</label><input id="intakeVolume"></div>
+          <div class="intake-field"><label>Páginas</label><input id="intakePages"></div>
+          <div class="intake-field wide"><label>Situação editorial</label><select id="intakePublicationStatus"><option value="Publicação a confirmar">Publicação a confirmar</option><option value="Submetido">Submetido</option><option value="Aceito">Aceito</option><option value="Publicado">Publicado</option><option value="Situação editorial a conferir">Situação editorial a conferir</option></select></div>
+        </div>
         <div class="intake-field wide"><label>Observações</label><textarea id="intakeNotes" placeholder="Qualquer detalhe que ajude na conferência"></textarea></div>
       </div>
       <div class="intake-dialog-actions"><div class="modal-note">O registro é inserido somente na cópia local do XML. O arquivo original permanece intacto.</div><div class="intake-actions"><button class="btn ghost" id="intakeCancel">Cancelar</button><button class="btn neon" id="intakeConfirm"><i data-lucide="file-plus-2"></i>Adicionar à cópia do XML</button></div></div>
@@ -187,6 +196,6 @@
   <div class="toast-stack" id="toastStack"></div>
   <script src="bridge-v3.js?v=20260917-1200"></script>
   <script src="app-v2.js?v=20260917-1200" type="module"></script>
-  <script src="career-v3.js?v=20261109-1" type="module"></script>
+  <script src="career-v3.js?v=20261109-2" type="module"></script>
 </body>
 </html>
