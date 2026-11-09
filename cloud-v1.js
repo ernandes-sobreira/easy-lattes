@@ -16,7 +16,7 @@ function cleanRecord(x){
 }
 function same(a,b){return a.type===b.type && String(a.title||'').trim().toLowerCase()===String(b.title||'').trim().toLowerCase() && a.year===b.year}
 async function boot(){
- if(!configured){message('Sincronização ainda não configurada. Seus registros permanecem neste dispositivo.');return}
+ if(!configured){if(signIn){signIn.disabled=true;signIn.title='Falta configurar o aplicativo Web no Firebase';}message('Sincronização ainda não configurada. Seus registros permanecem neste dispositivo.');return}
  try {
    const [app,authentication,firestore]=await Promise.all([
      import('https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js'),
@@ -40,7 +40,14 @@ async function boot(){
      try{await authentication.signInWithPopup(auth,new authentication.GoogleAuthProvider())}
      catch(err){message(err.code==='auth/unauthorized-domain'?'Domínio não autorizado no Firebase Authentication.': 'Não foi possível entrar: '+err.code)}
    });
-   signOut?.addEventListener('click',()=>authentication.signOut(auth));
+   signOut?.addEventListener('click',async()=>{
+     if(!confirm('Sair da conta? Os registros sincronizados serão retirados deste navegador, mas continuarão na sua conta Firebase.'))return;
+     try{
+       await authentication.signOut(auth);
+       localStorage.removeItem(STORAGE_KEY);
+       window.dispatchEvent(new CustomEvent('easy-lattes:cloud-records',{detail:{records:[]}}));
+     }catch(e){message('Não foi possível sair: '+e.code)}
+   });
  }catch(e){console.error(e);message('Firebase indisponível. Seus registros locais continuam acessíveis.')}
 }
 async function connectUser(next){
