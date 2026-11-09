@@ -153,7 +153,7 @@ function saveLocalDraft(d) {
 
 function addCandidateToXml(d) {
   if (!d.title || !d.title.trim()) return toast3('Informe o título antes de salvar.');
-  if (!/^(19|20)\\d{2}$/.test(d.year) || Number(d.year) > new Date().getFullYear()+1) return toast3('Confira o ano (4 dígitos).');
+  if (!/^(19|20)\d{2}$/.test(d.year) || Number(d.year) > new Date().getFullYear()+1) return toast3('Confira o ano (4 dígitos).');
   const duplicate = C.saved.some(x => x.type === d.type && x.year === d.year && norm(x.title) === norm(d.title));
   if (duplicate && !C.doc) return toast3('Essa atividade já está salva neste navegador.');
   if (!C.doc) {
@@ -528,7 +528,7 @@ function wire() {
   try { const saved=JSON.parse(localStorage.getItem('easy-lattes:approved-activities:v1')||'[]'); C.saved=Array.isArray(saved)?saved:[]; } catch(e) { C.saved=[]; }
   renderSavedDrafts();
   q('#stage1Export')?.addEventListener('click',exportApprovedActivities);
-  q('#stage1Upload')?.addEventListener('click',()=>q('#evidenceInput')?.click());
+  q('#stage1Upload')?.addEventListener('click',()=>{ q('[data-view="inbox"]')?.click(); q('#evidenceInput')?.click(); });
   q('#stage1Manual')?.addEventListener('click',()=>openIntakeModal());
   const careerBtn=q('[data-view="career"]');
   if(careerBtn){
