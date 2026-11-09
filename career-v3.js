@@ -144,6 +144,7 @@ function addPrize(d) {
 function saveLocalDraft(d) {
   try {
     localStorage.setItem('easy-lattes:approved-activities:v1', JSON.stringify(C.saved));
+    window.dispatchEvent(new CustomEvent('easy-lattes:local-changed'));
     return true;
   } catch (e) {
     console.error('Armazenamento local indisponível', e);
@@ -164,7 +165,8 @@ function addCandidateToXml(d) {
     if (candidate) candidate.status = 'saved';
     else C.candidates.unshift({...record,sourceName:d.sourceName||'Cadastro manual'});
     closeIntakeModal(); renderIntakeQueue(); renderSavedDrafts();
-    toast3(d.type === 'artigo' ? 'Artigo salvo localmente para revisão; XML ainda não alterado.' : 'Atividade salva neste dispositivo. Importe o XML quando quiser.');
+    window.dispatchEvent(new CustomEvent('easy-lattes:record-added',{detail:{record}}));
+    toast3(d.type === 'artigo' ? 'Artigo salvo para revisão; XML ainda não alterado.' : 'Atividade salva.');
     return;
   }
   try {
@@ -568,12 +570,21 @@ function renderSavedDrafts() {
       C.saved = C.saved.filter(x => x.id !== d.id);
       if (saveLocalDraft()) {
         C.candidates = C.candidates.filter(x => x.id !== d.candidateId && x.id !== d.id);
+        window.dispatchEvent(new CustomEvent('easy-lattes:record-deleted',{detail:{id:d.id}}));
         renderIntakeQueue(); renderSavedDrafts();
       } else { C.saved.push(d); toast3('Não consegui excluir o registro.'); }
     });
     row.append(label,btn); target.appendChild(row);
   });
 }
+function importCloudActivities(items) {
+  if (!Array.isArray(items)) return;
+  C.saved = items.filter(x=>x && typeof x.id==='string' && typeof x.title==='string');
+  try { localStorage.setItem('easy-lattes:approved-activities:v1',JSON.stringify(C.saved)); }
+  catch(e) { console.warn('Cache local indisponível',e); }
+  renderSavedDrafts();
+}
+window.addEventListener('easy-lattes:cloud-records',e=>importCloudActivities(e.detail?.records));
 function exportApprovedActivities() {
   if (!C.saved.length) return toast3('Ainda não há atividades salvas para exportar.');
   const blob = new Blob([JSON.stringify({format:'easy-lattes-approved-v1', exportedAt:new Date().toISOString(),activities:C.saved},null,2)],{type:'application/json'});
