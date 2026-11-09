@@ -155,8 +155,8 @@ function addCandidateToXml(d) {
   if (!d.title || !d.title.trim()) return toast3('Informe o título antes de salvar.');
   if (!/^(19|20)\d{2}$/.test(d.year) || Number(d.year) > new Date().getFullYear()+1) return toast3('Confira o ano (4 dígitos).');
   const duplicate = C.saved.some(x => x.type === d.type && x.year === d.year && norm(x.title) === norm(d.title));
-  if (duplicate && !C.doc) return toast3('Essa atividade já está salva neste navegador.');
-  if (!C.doc) {
+  if (duplicate && (!C.doc || d.type === 'artigo')) return toast3('Essa atividade já está salva neste navegador.');
+  if (!C.doc || d.type === 'artigo') {
     const record = {...d, id:uid(), approvedAt:new Date().toISOString(), status:'saved'};
     C.saved.push(record);
     if (!saveLocalDraft(record)) { C.saved.pop(); return toast3('Não foi possível guardar neste navegador. Exporte seus dados antes de sair.'); }
@@ -164,7 +164,7 @@ function addCandidateToXml(d) {
     if (candidate) candidate.status = 'saved';
     else C.candidates.unshift({...record,sourceName:d.sourceName||'Cadastro manual'});
     closeIntakeModal(); renderIntakeQueue(); renderSavedDrafts();
-    toast3('Atividade salva neste dispositivo. Importe o XML quando quiser.');
+    toast3(d.type === 'artigo' ? 'Artigo salvo localmente para revisão; XML ainda não alterado.' : 'Atividade salva neste dispositivo. Importe o XML quando quiser.');
     return;
   }
   try {
@@ -190,14 +190,58 @@ function addCandidateToXml(d) {
 }
 
 function guessType(text) {
-  const t = norm(text);
-  if (/\bbanca\b|defesa de|avaliador/.test(t)) return 'banca';
-  if (/premio|premiacao|homenagem|titulo de/.test(t)) return 'premio';
-  if (/organizacao|organizador|comissao organizadora|coordena(c|ç)ao do evento/.test(t)) return 'organizacao';
-  if (/ministrou|ministrante|curso de|minicurso|oficina/.test(t)) return 'curso';
-  if (/palestra|palestrante|conferencista|apresentou o trabalho|apresentacao de trabalho|mesa redonda/.test(t)) return 'apresentacao';
-  if (/participou|participacao|congresso|seminario|simposio|encontro|evento/.test(t)) return 'evento';
+  const head = norm(String(text).slice(0,7000));
+  if (/journal of |scientific journal|research article|original article|artigo cientifico|artigo original|issn|abstract.*keywords|volume.*issue/.test(head) && /abstract|resumo|issn|doi|journal/.test(head)) return 'artigo';
+  if (/\\bbanca\\b|defesa de|avaliador/.test(head)) return 'banca';
+  if (/premio|premiacao|homenagem|titulo de/.test(head)) return 'premio';
+  if (/organizacao|organizador|comissao organizadora|coordenacao do evento/.test(head)) return 'organizacao';
+  if (/ministrou|ministrante|curso de|minicurso|oficina/.test(head)) return 'curso';
+  if (/palestra|palestrante|conferencista|apresentou o trabalho|apresentacao de trabalho|mesa redonda/.test(head)) return 'apresentacao';
+  if (/participou|participacao|congresso|seminario|simposio|encontro|evento/.test(head)) return 'evento';
   return 'outra';
+}
+
+function extractJournalArticle(text, sourceName) {
+  const head = String(text||'').slice(0,12500);
+  const lines = head.split(/\\n/).map(x=>x.trim()).filter(Boolean);
+  const joined = lines.join(' ');
+  const isJournal = /\\b(journal of|revista (?:brasileira|cient[ií]fica|de)|scientific journal|research article|original article)\\b/i.test(head.slice(0,2500))
+    || (/\\babstract\\s*:/i.test(head) && /\\b(issn|volume|vol\\.|journal|doi)\\b/i.test(head.slice(0,5000)));
+  if (!isJournal) return null;
+  const idx = lines.findIndex(x=>/\\b(journal of|revista (?:brasileira|cient[ií]fica|de))\\b/i.test(x) && /20\\d{2}/.test(x));
+  const lineStart = idx>=0?idx+1:0;
+  const stop = lines.findIndex((x,i)=>i>=lineStart && (/\\babstract\\s*:/i.test(x)||/\\bresumo\\s*:/i.test(x)));
+  const front = lines.slice(lineStart,stop>=0?stop:Math.min(lines.length,20));
+  const titleLines=[];
+  let afterTitle=0;
+  for(let i=0;i<front.length && i<12;i++){
+    const line=front[i];
+    if (/^\\d+$/.test(line) || /^(?:page|p[aá]gina)\\b/i.test(line)) continue;
+    if (/^\\s*(?:received|accepted|published|e-issn|issn|doi)\\b/i.test(line)) break;
+    if (/\\b(?:Ernandes|Maísa|Maisa|Cleverson)\\b/i.test(line) && titleLines.length) {afterTitle=i;break;}
+    if (/^\\s*[A-Z][a-z]+\\s+[A-Z][a-z]+.*\\d[,;]/.test(line) && titleLines.length) {afterTitle=i;break;}
+    if (line.length>18 && !/\\b(?:journal of|revista )\\b/i.test(line)) titleLines.push(line);
+    if(titleLines.join(' ').length>230)break;
+    afterTitle=i+1;
+  }
+  const title = titleLines.join(' ').replace(/\\s+/g,' ').replace(/\\s*-\\s+/g,'-').trim();
+  const journalLine=lines.find(x=>/\\b(journal of|revista (?:brasileira|cient[ií]fica|de))\\b/i.test(x))||'';
+  const journal=(journalLine.match(/^(.*?)(?:,\\s*20\\d{2}\\b|\\s+20\\d{2}\\b)/)||[])[1]||journalLine;
+  const journalMatch=journalLine.match(/(?:20\\d{2})\\s*,\\s*(\\d{1,4})/);
+  const authorZone=front.slice(afterTitle).join(' ').split(/(?:Centro de |Universidade |Departamento de |Abstract:|Resumo:)/i)[0];
+  const authors=authorZone.replace(/\\d+,?\\*/g,'').replace(/\\d+/g,'').replace(/\\s+and\\s+/g,', ').split(/\\s*,\\s*/).map(x=>x.trim()).filter(x=>x.length>8 && x.length<90);
+  const doi=(head.slice(0,5000).match(/(?:doi\\s*[:/]\\s*|doi\\.org\\/)(10\\.\\d{4,9}\\/[-._;()/:A-Z0-9]+)/i)||[])[1]||'';
+  const placeholder=/000\\s*[-–]\\s*000|00-00-20\\d{2}/.test(head.slice(0,8500));
+  const pubStatus=placeholder?'Publicação a confirmar':'Situação editorial a conferir';
+  return {
+    id:uid(),type:'artigo',title,year:(journalLine.match(/\\b(20\\d{2})\\b/)||[])[1]||'',
+    journal:journal.trim(),volume:journalMatch?.[1]||'',issue:'',pages:placeholder?'':((journalLine.match(/\\b\\d+\\s*,\\s*\\d+\\s*,\\s*(\\d+[-–]\\d+)\\b/)||[])[1]||''),
+    authors:authors.join('; '),doi,publicationStatus:pubStatus,
+    institution:'',event:'',role:'Artigo científico',hours:'',person:'',local:'',city:'',country:'',
+    notes:placeholder?'Datas editoriais/paginação provisórias no PDF; não presumir publicação.':'Confirmar situação editorial e metadados antes do cadastro.',
+    sourceName,text:head,status:'ready',
+    confidence:title && journal && year?75:45
+  };
 }
 
 function firstMatch(text, patterns) {
@@ -210,6 +254,8 @@ function firstMatch(text, patterns) {
 
 function extractCandidate(text, sourceName = 'Entrada manual') {
   const clean = String(text || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ');
+  const article=extractJournalArticle(clean,sourceName);
+  if(article)return article;
   const year = (clean.match(/\b(20\d{2}|19\d{2})\b/) || [])[1] || '';
   const hours = (clean.match(/(?:carga hor[aá]ria|dura[cç][aã]o)[^0-9]{0,20}(\d{1,4})\s*(?:h|horas?)/i) || [])[1] || '';
   let title = firstMatch(clean, [/(?:t[ií]tulo|tema)\s*[:\-–]\s*([^\n]{5,220})/i, /(?:palestra|confer[eê]ncia|minicurso|curso|trabalho)\s+["“']([^"”'\n]{5,220})/i, /["“]([^"”\n]{8,220})["”]/]);
@@ -218,7 +264,7 @@ function extractCandidate(text, sourceName = 'Entrada manual') {
   const person = firstMatch(clean, [/(?:candidat[oa]|discente|alun[oa])\s*[:\-–]?\s*([^\n,.;]{4,100})/i]);
   if (!title) {
     const lines = clean.split(/\n+/).map(x => x.trim()).filter(x => x.length > 8 && x.length < 180);
-    title = lines.find(x => !/certific|declar|particip|universidade|instituto/i.test(x)) || event || sourceName.replace(/\.[^.]+$/, '');
+    title = lines.find(x => !/certific|declar|particip|universidade|instituto/i.test(x)) || event || '';
   }
   const type = guessType(clean);
   const role = type === 'apresentacao' ? (/palestr/i.test(clean) ? 'Palestra' : 'Apresentação de trabalho') : type === 'curso' ? 'Curso ministrado' : type === 'organizacao' ? 'Organização' : type === 'evento' ? 'Participação em evento' : type === 'banca' ? 'Participação em banca' : type === 'premio' ? 'Prêmio/Título' : 'Outra produção técnica';
@@ -240,15 +286,21 @@ async function loadScript(src, id) {
 async function extractPdf(file) {
   const pdfjs = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
   pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
-  const pdf = await pdfjs.getDocument({data: await file.arrayBuffer()}).promise;
-  let out = '';
-  const pages = Math.min(pdf.numPages, 12);
-  for (let i = 1; i <= pages; i++) {
-    const p = await pdf.getPage(i);
-    const tc = await p.getTextContent();
-    out += '\n' + tc.items.map(x => x.str).join(' ');
+  const pdf = await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;
+  let out='';
+  for(let n=1;n<=Math.min(pdf.numPages,3);n++){
+    const page=await pdf.getPage(n),content=await page.getTextContent();
+    const groups=new Map();
+    for(const it of content.items){
+      if(!it.str?.trim())continue;
+      const y=Math.round(it.transform?.[5]||0);
+      if(!groups.has(y))groups.set(y,[]);
+      groups.get(y).push({x:it.transform?.[4]||0,str:it.str});
+    }
+    const ordered=[...groups.entries()].sort((a,b)=>b[0]-a[0]);
+    out+='\\n'+ordered.map(([,items])=>items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ')).join('\\n');
   }
-  return out;
+  return out.slice(0,55000);
 }
 
 async function extractImage(file, progress) {
@@ -280,6 +332,7 @@ async function processEvidenceFile(file) {
       toast3('DOC/DOCX entrou na caixa. Para extração completa, a próxima etapa usará IA no servidor.');
     }
     const candidate = extractCandidate(text, file.name);
+    if (!candidate.title || candidate.type === 'outra') candidate.confidence = Math.min(candidate.confidence,35);
     C.candidates.unshift(candidate);
     renderIntakeQueue();
     if (status) status.innerHTML = `<i data-lucide="sparkles"></i><span>Pronto. Revise o registro sugerido abaixo.</span>`;
@@ -303,8 +356,8 @@ function renderIntakeQueue() {
     box.innerHTML = `<div class="smart-empty"><i data-lucide="brain-circuit"></i><div><strong>Nenhum registro sugerido ainda.</strong><p>Envie um print, PDF ou digite uma atividade. O Easy Lattes transforma isso em campos revisáveis.</p></div></div>`;
   } else {
     box.innerHTML = C.candidates.map(c => `<article class="smart-candidate ${c.status === 'added' || c.status === 'saved' ? 'added' : ''}">
-      <div class="smart-candidate-icon"><i data-lucide="${c.type === 'apresentacao'?'mic-2':c.type === 'curso'?'presentation':c.type === 'evento'?'calendar-check':c.type === 'banca'?'users':c.type === 'premio'?'award':c.type === 'organizacao'?'calendar-cog':'file-plus-2'}"></i></div>
-      <div class="smart-candidate-main"><div class="smart-meta"><span>${typeLabel(c.type)}</span><span>${c.confidence}% confiança</span><span>${esc(c.sourceName)}</span></div><h4>${esc(c.title || 'Título precisa de revisão')}</h4><p>${esc([c.year,c.institution,c.event].filter(Boolean).join(' • ') || 'Revise os campos antes de incluir no XML.')}</p></div>
+      <div class="smart-candidate-icon"><i data-lucide="${c.type === 'artigo'?'book-open':c.type === 'apresentacao'?'mic-2':c.type === 'curso'?'presentation':c.type === 'evento'?'calendar-check':c.type === 'banca'?'users':c.type === 'premio'?'award':c.type === 'organizacao'?'calendar-cog':'file-plus-2'}"></i></div>
+      <div class="smart-candidate-main"><div class="smart-meta"><span>${typeLabel(c.type)}</span><span>${c.confidence}% qualidade preliminar</span><span>${esc(c.sourceName)}</span></div><h4>${esc(c.title || 'Título precisa de revisão')}</h4><p>${esc((c.type==='artigo'?[c.year,c.journal,c.publicationStatus]:[c.year,c.institution,c.event]).filter(Boolean).join(' • ') || 'Revise os campos antes de incluir no XML.')}</p></div>
       <div class="smart-candidate-action">${c.status === 'added' ? '<span class="added-pill"><i data-lucide="check"></i>No XML</span>' : c.status === 'saved' ? '<span class="added-pill"><i data-lucide="check"></i>Salvo localmente</span>' : `<button class="btn neon mini" data-review-candidate="${c.id}">Revisar e adicionar</button>`}</div>
     </article>`).join('');
   }
@@ -312,7 +365,7 @@ function renderIntakeQueue() {
 }
 
 function typeLabel(t) {
-  return ({apresentacao:'Palestra / apresentação',curso:'Curso ministrado',evento:'Participação em evento',organizacao:'Organização de evento',banca:'Banca',premio:'Prêmio / título',outra:'Produção técnica'})[t] || t;
+  return ({artigo:'Artigo científico',apresentacao:'Palestra / apresentação',curso:'Curso ministrado',evento:'Participação em evento',organizacao:'Organização de evento',banca:'Banca',premio:'Prêmio / título',outra:'Produção técnica'})[t] || t;
 }
 
 function openIntakeModal(candidate = null) {
@@ -331,10 +384,12 @@ function openIntakeModal(candidate = null) {
   q('#intakeLocal').value = c.local || '';
   q('#intakeCity').value = c.city || '';
   q('#intakeNotes').value = c.notes || '';
+  ['journal','authors','doi','volume','pages','publicationStatus'].forEach(k=>{const el=q('#intake'+k[0].toUpperCase()+k.slice(1));if(el)el.value=c[k]||'';});
+  q('#articleFields').hidden = c.type !== 'artigo';
   q('#intakeSource').textContent = c.sourceName || 'Entrada manual';
   modal.hidden = false;
   requestAnimationFrame(() => modal.classList.add('open'));
-  q('#intakeConfirm').textContent = C.doc ? 'Adicionar à cópia do XML' : 'Confirmar e salvar neste dispositivo';
+  q('#intakeConfirm').textContent = C.doc && c.type !== 'artigo' ? 'Adicionar à cópia do XML' : 'Confirmar e salvar neste dispositivo';
   q('#intakeTitle').focus();
 }
 
@@ -361,7 +416,9 @@ function formCandidate() {
     local: val('intakeLocal'),
     city: val('intakeCity'),
     country: base.country || 'Brasil',
-    notes: val('intakeNotes')
+    notes: val('intakeNotes'),
+    journal: val('intakeJournal'), authors: val('intakeAuthors'), doi: val('intakeDoi'),
+    volume: val('intakeVolume'),pages: val('intakePages'),publicationStatus:val('intakePublicationStatus')
   };
 }
 
@@ -536,6 +593,7 @@ function wire() {
     careerBtn.onclick=function(e){ if(old) old.call(this,e); setTimeout(()=>{const t=q('#pageTitle');if(t)t.textContent='Análise da sua carreira.'; renderCareer();},0); };
   }
   q('#manualEntryBtn')?.addEventListener('click',()=>openIntakeModal());
+  q('#intakeType')?.addEventListener('change',e=>{q('#articleFields').hidden=e.target.value!=='artigo';q('#intakeConfirm').textContent= C.doc && e.target.value!=='artigo'?'Adicionar à cópia do XML':'Confirmar e salvar neste dispositivo';});
   q('#intakeClose')?.addEventListener('click',closeIntakeModal);
   q('#intakeCancel')?.addEventListener('click',closeIntakeModal);
   q('#intakeModal')?.addEventListener('click',e=>{if(e.target.id==='intakeModal')closeIntakeModal()});
