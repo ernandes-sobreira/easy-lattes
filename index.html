@@ -13,6 +13,17 @@
   <link rel="stylesheet" href="review-v2.css?v=20260917-1200" />
   <link rel="stylesheet" href="career-v3.css?v=20260917-1200" />
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<style>
+.stage1-panel{background:#fff;border:1px solid #e5e9f2;border-radius:20px;padding:20px;margin:18px 0}
+.stage1-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.stage1-panel h3{font-size:17px;margin:6px 0}
+.stage1-panel p,.stage1-muted{font-size:12px;line-height:1.6;color:#667085;max-width:720px}
+.stage1-saved-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid #e5e9f2}
+.stage1-saved-row>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.stage1-saved-row strong{font-size:13px;overflow-wrap:anywhere}
+.stage1-saved-row small{font-size:11px;color:#667085}
+@media(max-width:760px){.stage1-panel-head,.stage1-saved-row{flex-direction:column;align-items:stretch}.hero-actions{flex-wrap:wrap}}
+</style>
 </head>
 <body>
   <div class="app-shell">
@@ -52,9 +63,11 @@
         <div class="hero-card">
           <div class="hero-copy">
             <div class="status-pill neutral" id="heroStatus"><span class="dot"></span>Envie seu XML para começar</div>
-            <h2 id="heroHeadline">Menos formulário. Mais currículo pronto.</h2>
-            <p id="heroText">O Easy Lattes lê o XML, encontra o que merece revisão e transforma a auditoria em uma fila de decisões rápidas.</p>
+            <h2 id="heroHeadline">Registre suas atividades sem preencher formulários intermináveis.</h2>
+            <p id="heroText">Envie um certificado, PDF ou imagem. Confira a sugestão e salve sua atividade. Não precisa importar o Lattes para começar.</p>
             <div class="hero-actions">
+              <button class="btn primary large" id="stage1Upload"><i data-lucide="scan-text"></i>Enviar comprovante</button>
+              <button class="btn ghost large" id="stage1Manual"><i data-lucide="pencil-line"></i>Digitar atividade</button>
               <button class="btn primary large" id="heroXmlBtn"><i data-lucide="file-up"></i>Importar meu XML</button>
               <button class="btn neon large" id="startReviewBtn"><i data-lucide="wand-sparkles"></i>Começar revisão</button>
             </div>
@@ -64,6 +77,14 @@
             <div class="score-caption" id="scoreCaption">Sem análise ainda</div>
           </div>
         </div>
+        <section class="stage1-panel" aria-labelledby="stage1Title">
+          <div class="stage1-panel-head">
+            <div><div class="panel-kicker">ETAPA 1 · CADASTRO SIMPLES</div><h3 id="stage1Title">Atividades confirmadas neste dispositivo: <span id="stage1SavedCount">0</span></h3>
+            <p>O reconhecimento é uma sugestão automática por regras e OCR, não uma conferência por IA generativa. Revise antes de confirmar. Os dados ficam somente neste navegador e podem ser perdidos se você limpar seus dados.</p></div>
+            <button class="btn ghost" id="stage1Export" type="button"><i data-lucide="download"></i>Exportar meus registros</button>
+          </div>
+          <div id="stage1SavedList"></div>
+        </section>
         <div class="stats-grid">
           <article class="stat-card"><div class="stat-icon"><i data-lucide="book-open"></i></div><div><span>Produções lidas</span><strong id="statProductions">0</strong><small>do XML importado</small></div></article>
           <article class="stat-card"><div class="stat-icon"><i data-lucide="triangle-alert"></i></div><div><span>Para revisar</span><strong id="statIssues">0</strong><small>fila inteligente</small></div></article>
@@ -166,6 +187,6 @@
   <div class="toast-stack" id="toastStack"></div>
   <script src="bridge-v3.js?v=20260917-1200"></script>
   <script src="app-v2.js?v=20260917-1200" type="module"></script>
-  <script src="career-v3.js?v=20260917-1200" type="module"></script>
+  <script src="career-v3.js?v=20261109-1" type="module"></script>
 </body>
 </html>
