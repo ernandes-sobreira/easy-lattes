@@ -5,8 +5,9 @@ const status=document.getElementById('cloudStatus');
 const signIn=document.getElementById('cloudSignIn');
 const signOut=document.getElementById('cloudSignOut');
 const account=document.getElementById('cloudAccount');
+const importButton=document.getElementById('cloudImport');
 const configured=Boolean(firebaseConfig.apiKey && firebaseConfig.appId && firebaseConfig.projectId);
-let user=null,store=null,auth=null,db=null,unsubscribe=null,initializing=false,pendingWrite=false;
+let user=null,auth=null,db=null,unsubscribe=null,pendingWrite=false,localToImport=[];
 let sdk={};
 function message(t){if(status)status.textContent=t;}
 function localRecords(){try{const a=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');return Array.isArray(a)?a:[]}catch{return[]}}
@@ -32,7 +33,8 @@ async function boot(){
      signIn.hidden=!!next;
      signOut.hidden=!next;
      if(account)account.textContent=next ? (next.email||'Conta conectada'):'Sem conta conectada';
-     if(!next){message('Modo local. Entre com Google para sincronizar registros.');return}
+     if(!next){if(importButton)importButton.hidden=true;message('Modo local. Entre com Google para sincronizar registros.');return}
+     localToImport=localRecords().slice();
      message('Conectando seus registros...');
      await connectUser(next);
    },err=>message('Não foi possível verificar a conta: '+err.code));
@@ -52,29 +54,32 @@ async function boot(){
 }
 async function connectUser(next){
  const col=sdk.collection(db,'users',next.uid,'activities');
- let completedFirst=false;
- unsubscribe=sdk.onSnapshot(col,async snap=>{
+ unsubscribe=sdk.onSnapshot(col,snap=>{
    if(user?.uid!==next.uid)return;
    const remote=snap.docs.map(d=>({id:d.id,...d.data()}));
-   if(!completedFirst){
-     completedFirst=true;
-     const existing=new Set(remote.map(x=>x.id));
-     const toUpload=localRecords().filter(x=>x.id && !existing.has(x.id) && !remote.some(y=>same(x,y)));
-     if(toUpload.length){
-       message('Migrando '+toUpload.length+' registro(s) deste dispositivo...');
-       try{
-         const batch=sdk.writeBatch(db);
-         toUpload.forEach(x=>batch.set(sdk.doc(col,x.id),cleanRecord(x)));
-         await batch.commit();
-       }catch(e){console.error(e);message('Falha na migração local. Os dados locais não foram apagados.');return}
-       return;
-     }
-   }
+   const pending=localToImport.filter(x=>x.id && !remote.some(y=>y.id===x.id || same(x,y)));
+   if(importButton){importButton.hidden=!pending.length;importButton.textContent='Importar '+pending.length+' registro(s) locais';}
    if(pendingWrite)return;
    window.dispatchEvent(new CustomEvent('easy-lattes:cloud-records',{detail:{records:remote}}));
-   message('Sincronizado com sua conta Google ('+remote.length+' registros).');
+   message('Sincronizado com sua conta Google ('+remote.length+' registros).'+(pending.length?' Há registros locais que precisam de sua confirmação para importar.':''));
  },e=>message('Falha ao ler registros: '+e.code));
 }
+importButton?.addEventListener('click',async()=>{
+ if(!user||!db||!localToImport.length)return;
+ if(!confirm('Importar os registros deste dispositivo para a conta Google '+(user.email||'conectada')+'? Revise se são seus.'))return;
+ const col=sdk.collection(db,'users',user.uid,'activities');
+ const pending=localToImport.filter(x=>x?.id&&x.title);
+ try{
+   for(let i=0;i<pending.length;i+=300){
+     const batch=sdk.writeBatch(db);
+     pending.slice(i,i+300).forEach(x=>batch.set(sdk.doc(col,x.id),cleanRecord(x)));
+     await batch.commit();
+   }
+   localToImport=[];
+   importButton.hidden=true;
+   message('Importação local concluída. Seus registros estão na conta conectada.');
+ }catch(e){console.error(e);message('Não foi possível concluir a importação. Confira o banco e tente novamente.')}
+});
 window.addEventListener('easy-lattes:record-added',async ev=>{
  if(!user||!db)return;
  const record=ev.detail?.record;if(!record?.id)return;
