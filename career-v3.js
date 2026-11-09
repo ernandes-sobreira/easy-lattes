@@ -2,6 +2,7 @@ const C = {
   doc: null,
   candidates: [],
   additions: [],
+  saved: [],
   currentCandidate: null,
   processing: new Set(),
   lastAnalysis: null
@@ -140,9 +141,32 @@ function addPrize(d) {
   prizes.appendChild(node('PREMIO-TITULO', {'NOME-DO-PREMIO-OU-TITULO':d.title,'NOME-DA-ENTIDADE-PROMOTORA':d.institution,'ANO-DA-PREMIACAO':d.year}));
 }
 
+function saveLocalDraft(d) {
+  try {
+    localStorage.setItem('easy-lattes:approved-activities:v1', JSON.stringify(C.saved));
+    return true;
+  } catch (e) {
+    console.error('Armazenamento local indisponível', e);
+    return false;
+  }
+}
+
 function addCandidateToXml(d) {
-  if (!C.doc) return toast3('Importe seu XML do Lattes antes de adicionar a atividade.');
-  if (!d.title) return toast3('Revise o título antes de adicionar.');
+  if (!d.title || !d.title.trim()) return toast3('Informe o título antes de salvar.');
+  if (!/^(19|20)\\d{2}$/.test(d.year) || Number(d.year) > new Date().getFullYear()+1) return toast3('Confira o ano (4 dígitos).');
+  const duplicate = C.saved.some(x => x.type === d.type && x.year === d.year && norm(x.title) === norm(d.title));
+  if (duplicate && !C.doc) return toast3('Essa atividade já está salva neste navegador.');
+  if (!C.doc) {
+    const record = {...d, id:uid(), approvedAt:new Date().toISOString(), status:'saved'};
+    C.saved.push(record);
+    if (!saveLocalDraft(record)) { C.saved.pop(); return toast3('Não foi possível guardar neste navegador. Exporte seus dados antes de sair.'); }
+    const candidate = C.candidates.find(x => x.id === d.candidateId);
+    if (candidate) candidate.status = 'saved';
+    else C.candidates.unshift({...record,sourceName:d.sourceName||'Cadastro manual'});
+    closeIntakeModal(); renderIntakeQueue(); renderSavedDrafts();
+    toast3('Atividade salva neste dispositivo. Importe o XML quando quiser.');
+    return;
+  }
   try {
     if (d.type === 'apresentacao') addPresentation(d);
     else if (d.type === 'curso') addCourse(d);
@@ -273,15 +297,15 @@ function renderIntakeQueue() {
   const box = q('#smartIntakeQueue');
   const count = q('#smartQueueCount');
   if (!box) return;
-  const pending = C.candidates.filter(x => x.status !== 'added');
+  const pending = C.candidates.filter(x => x.status !== 'added' && x.status !== 'saved');
   if (count) count.textContent = String(pending.length);
   if (!C.candidates.length) {
     box.innerHTML = `<div class="smart-empty"><i data-lucide="brain-circuit"></i><div><strong>Nenhum registro sugerido ainda.</strong><p>Envie um print, PDF ou digite uma atividade. O Easy Lattes transforma isso em campos revisáveis.</p></div></div>`;
   } else {
-    box.innerHTML = C.candidates.map(c => `<article class="smart-candidate ${c.status === 'added' ? 'added' : ''}">
+    box.innerHTML = C.candidates.map(c => `<article class="smart-candidate ${c.status === 'added' || c.status === 'saved' ? 'added' : ''}">
       <div class="smart-candidate-icon"><i data-lucide="${c.type === 'apresentacao'?'mic-2':c.type === 'curso'?'presentation':c.type === 'evento'?'calendar-check':c.type === 'banca'?'users':c.type === 'premio'?'award':c.type === 'organizacao'?'calendar-cog':'file-plus-2'}"></i></div>
       <div class="smart-candidate-main"><div class="smart-meta"><span>${typeLabel(c.type)}</span><span>${c.confidence}% confiança</span><span>${esc(c.sourceName)}</span></div><h4>${esc(c.title || 'Título precisa de revisão')}</h4><p>${esc([c.year,c.institution,c.event].filter(Boolean).join(' • ') || 'Revise os campos antes de incluir no XML.')}</p></div>
-      <div class="smart-candidate-action">${c.status === 'added' ? '<span class="added-pill"><i data-lucide="check"></i>No XML</span>' : `<button class="btn neon mini" data-review-candidate="${c.id}">Revisar e adicionar</button>`}</div>
+      <div class="smart-candidate-action">${c.status === 'added' ? '<span class="added-pill"><i data-lucide="check"></i>No XML</span>' : c.status === 'saved' ? '<span class="added-pill"><i data-lucide="check"></i>Salvo localmente</span>' : `<button class="btn neon mini" data-review-candidate="${c.id}">Revisar e adicionar</button>`}</div>
     </article>`).join('');
   }
   window.lucide?.createIcons?.();
@@ -310,6 +334,7 @@ function openIntakeModal(candidate = null) {
   q('#intakeSource').textContent = c.sourceName || 'Entrada manual';
   modal.hidden = false;
   requestAnimationFrame(() => modal.classList.add('open'));
+  q('#intakeConfirm').textContent = C.doc ? 'Adicionar à cópia do XML' : 'Confirmar e salvar neste dispositivo';
   q('#intakeTitle').focus();
 }
 
@@ -460,7 +485,51 @@ function syncAdditionsToReport() {
   window.lucide?.createIcons?.();
 }
 
+function renderSavedDrafts() {
+  const target = q('#stage1SavedList');
+  const count = q('#stage1SavedCount');
+  if (count) count.textContent = String(C.saved.length);
+  if (!target) return;
+  target.replaceChildren();
+  if (!C.saved.length) {
+    const p = document.createElement('p');
+    p.className = 'stage1-muted';
+    p.textContent = 'Nenhuma atividade aprovada ainda. Comece enviando um comprovante.';
+    target.appendChild(p);
+    return;
+  }
+  C.saved.slice().reverse().forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'stage1-saved-row';
+    const label = document.createElement('div');
+    const strong = document.createElement('strong'); strong.textContent = d.title;
+    const small = document.createElement('small'); small.textContent = [typeLabel(d.type),d.year,d.institution].filter(Boolean).join(' • ');
+    label.append(strong,small);
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost'; btn.textContent = 'Excluir'; btn.type='button';
+    btn.addEventListener('click', () => {
+      C.saved = C.saved.filter(x => x.id !== d.id);
+      if (saveLocalDraft()) {
+        C.candidates = C.candidates.filter(x => x.id !== d.candidateId && x.id !== d.id);
+        renderIntakeQueue(); renderSavedDrafts();
+      } else { C.saved.push(d); toast3('Não consegui excluir o registro.'); }
+    });
+    row.append(label,btn); target.appendChild(row);
+  });
+}
+function exportApprovedActivities() {
+  if (!C.saved.length) return toast3('Ainda não há atividades salvas para exportar.');
+  const blob = new Blob([JSON.stringify({format:'easy-lattes-approved-v1', exportedAt:new Date().toISOString(),activities:C.saved},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download='easy-lattes-atividades.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
 function wire() {
+  try { const saved=JSON.parse(localStorage.getItem('easy-lattes:approved-activities:v1')||'[]'); C.saved=Array.isArray(saved)?saved:[]; } catch(e) { C.saved=[]; }
+  renderSavedDrafts();
+  q('#stage1Export')?.addEventListener('click',exportApprovedActivities);
+  q('#stage1Upload')?.addEventListener('click',()=>q('#evidenceInput')?.click());
+  q('#stage1Manual')?.addEventListener('click',()=>openIntakeModal());
   const careerBtn=q('[data-view="career"]');
   if(careerBtn){
     const old=careerBtn.onclick;
