@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260917-1200" />
-  <link rel="stylesheet" href="review-v2.css?v=20261112-2" />
+  <link rel="stylesheet" href="review-v2.css?v=20261112-3" />
   <link rel="stylesheet" href="career-v3.css?v=20260917-1200" />
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 <style>
@@ -151,11 +151,17 @@
       <section class="view" id="view-audit">
         <div class="section-intro review-intro">
           <div><div class="eyebrow">REVISÃO ASSISTIDA</div><h2>Você só decide. O sistema prepara.</h2><p>Um problema por vez, com proposta de correção e atualização da cópia do XML.</p></div>
-          <div class="review-top-actions"><button class="btn ghost" id="rerunAuditBtn"><i data-lucide="scan-line"></i>Reanalisar XML</button><button class="btn neon" id="safeFixBtn"><i data-lucide="zap"></i>Aplicar correções seguras</button></div>
+          <div class="review-top-actions"><button class="btn neon" id="analyzeAllBtn" type="button">Analisar currículo inteiro</button><button class="btn ghost" id="cancelBatchBtn" type="button" hidden>Parar análise</button><button class="btn ghost" id="rerunAuditBtn"><i data-lucide="scan-line"></i>Reanalisar XML</button><button class="btn neon" id="safeFixBtn"><i data-lucide="zap"></i>Aplicar correções seguras</button></div>
         </div>
         <p class="review-reading-status" id="reviewReadingStatus" role="status" hidden></p>
+        <section class="batch-analysis" id="batchAnalysisPanel" hidden aria-label="Análise completa do currículo">
+          <h3 id="batchAnalysisTitle">Seu XML está pronto para a análise completa</h3>
+          <p id="batchAnalysisText" role="status" aria-live="polite"></p>
+          <div class="batch-track"><span id="batchAnalysisBar"></span></div>
+          <div id="batchAnalysisResults" class="batch-results"></div>
+        </section>
         <div class="review-progress-card">
-          <div><div class="mini-label neon-text">MODO REVISÃO RÁPIDA</div><h3 id="reviewProgressTitle">Importe um XML para começar</h3><p id="reviewProgressText">As correções aprovadas serão aplicadas em uma cópia local do seu XML.</p></div>
+          <div><div class="mini-label neon-text">APROVAÇÃO DAS ALTERAÇÕES</div><h3 id="reviewProgressTitle">Importe um XML para começar</h3><p id="reviewProgressText">As correções aprovadas serão aplicadas em uma cópia local do seu XML.</p></div>
           <div class="review-progress-right"><strong id="reviewProgressPct">0%</strong><div class="review-track"><span id="reviewProgressBar" style="width:0%"></span></div></div>
         </div>
         <div id="reviewWorkspace" class="review-workspace empty-state roomy"><i data-lucide="wand-sparkles"></i><p>Sua fila de revisão aparecerá aqui.</p></div>
@@ -206,7 +212,7 @@
 
   <div class="toast-stack" id="toastStack"></div>
   <script src="bridge-v3.js?v=20260917-1200"></script>
-  <script src="app-v2.js?v=20261112-2" type="module"></script>
+  <script src="app-v2.js?v=20261112-3" type="module"></script>
   <script src="career-v3.js?v=20261112-1" type="module"></script>
   <script src="cloud-v1.js?v=20261112-1" type="module"></script>
 </body>

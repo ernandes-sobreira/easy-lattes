@@ -1,4 +1,5 @@
 const S={xmlName:null,xmlText:null,doc:null,researcher:null,items:[],issues:[],files:[],changes:[],score:null,cursor:0,demo:false};
+const B={running:false,run:0,total:0,done:0,found:0,empty:0,errors:0,manual:0,controller:null,started:false,cancelled:false};
 const $=id=>document.getElementById(id), $$=q=>[...document.querySelectorAll(q)];
 const LABEL={artigo:'Artigo',livro:'Livro',capitulo:'Capítulo',orientacao:'Orientação',banca:'Banca',evento:'Evento',projeto:'Projeto',tecnica:'Produção técnica'};
 const ICON={artigo:'newspaper',livro:'book-open',capitulo:'book-copy',orientacao:'graduation-cap',banca:'users',evento:'calendar-days',projeto:'flask-conical',tecnica:'wrench'};
@@ -20,6 +21,7 @@ function recalcItem(p){p.title=readRef(p.refs.title)||p.title||'(sem título ide
 function collect(doc,selector,type,refMap){[...doc.querySelectorAll(selector)].forEach((e,i)=>{const refs=refMap(e);S.items.push(item(type,e,refs,`${selector}-${i}-${S.items.length}`))})}
 function genericRefs(e){return{title:findRef(e,['TITULO','TITULO-DO-TRABALHO','TITULO-DA-ORIENTACAO','NOME-DO-EVENTO','TITULO-DO-TRABALHO-TECNICO','TITULO-DO-CURSO-DE-CURTA-DURACAO']),year:findRef(e,['ANO','ANO-DA-ORIENTACAO','ANO-DO-TRABALHO','ANO-DO-EVENTO']),venue:findRef(e,['NOME-DA-INSTITUICAO','NOME-INSTITUICAO','NOME-DA-ENTIDADE','NOME-DO-EVENTO','NOME-DO-CURSO']),doi:null,extra:null}}
 function parseXml(text,name='curriculo.xml'){
+ cancelBatch();Object.assign(B,{total:0,done:0,found:0,empty:0,errors:0,manual:0,started:false,cancelled:false});
  const doc=new DOMParser().parseFromString(text,'application/xml');if(doc.querySelector('parsererror'))throw Error('XML inválido');S.xmlName=name;S.xmlText=text;S.doc=doc;S.demo=false;S.changes=[];S.cursor=0;
  const root=doc.querySelector('CURRICULO-VITAE')||doc.documentElement,d=doc.querySelector('DADOS-GERAIS');S.researcher={name:attr(d,'NOME-COMPLETO')||'Pesquisador',id:attr(root,'NUMERO-IDENTIFICADOR'),updated:attr(root,'DATA-ATUALIZACAO')};S.items=[];
  collect(doc,'ARTIGO-PUBLICADO','artigo',e=>{const b=e.querySelector('DADOS-BASICOS-DO-ARTIGO'),q=e.querySelector('DETALHAMENTO-DO-ARTIGO');return{title:ref(b,'TITULO-DO-ARTIGO'),year:ref(b,'ANO-DO-ARTIGO'),doi:ref(b,'DOI'),venue:ref(q,'TITULO-DO-PERIODICO-OU-REVISTA'),extra:ref(q,'ISSN')}});
@@ -49,15 +51,15 @@ function keepBoth(issue){issue.status='ignored';addChange('decision','Dois regis
 function swapDuplicate(issue){const oldRemove=issue.item;issue.item=issue.keep;issue.keep=oldRemove;issue.peer=oldRemove;renderReview()}
 function inputVal(id){return $(id)?.value?.trim()||''}
 function applyEnrich(issue){const p=issue.item,fields={doi:inputVal('fix-doi'),year:inputVal('fix-year'),venue:inputVal('fix-venue')},changed=[];for(const [k,v] of Object.entries(fields)){if(v&&v!==p[k]&&p.refs[k]&&setRef(p.refs[k],v)){changed.push(`${k.toUpperCase()}: ${p[k]||'—'} → ${v}`);p[k]=v}}if(!changed.length){toast('Nenhuma alteração nova para aplicar.');return}recalcItem(p);issue.status=(!p.year||!p.venue||(p.type==='artigo'&&!p.doi))?'open':'resolved';addChange('enrich','Cadastro enriquecido',`${short(p.title,110)} • ${changed.join(' • ')}`);audit(false);toast('Correção aplicada à cópia do XML.');render()}
-async function lookupCrossref(issue){
+async function lookupCrossref(issue,options={}){
  const p=issue.item;
  if(!p?.title||p.title.startsWith('(sem'))return toast('Falta um título para buscar metadados.');
  if(issue.lookupState==='loading')return;
  const importDoc=S.doc;
- issue.lookupState='loading';issue.lookupMessage='Buscando título, ano e periódico no Crossref…';renderReview();lucide.createIcons();
+ issue.lookupState='loading';issue.lookupMessage='Buscando título, ano e periódico no Crossref…';if(!options.quiet){renderReview();lucide.createIcons();}
  try{
   const url=`https://api.crossref.org/works?rows=5&query.title=${encodeURIComponent(p.title)}`;
-  const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(15000)});
+  const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.any([AbortSignal.timeout(15000),options.signal].filter(Boolean))});
   if(!r.ok)throw Error('network');
   const data=await r.json();
   if(S.doc!==importDoc)return;
@@ -67,8 +69,41 @@ async function lookupCrossref(issue){
   const x=cand.x,year=x?.published?.['date-parts']?.[0]?.[0]||x?.issued?.['date-parts']?.[0]?.[0]||'';
   issue.suggestion={doi:x.DOI||'',year:String(year||''),venue:(x['container-title']||[])[0]||'',title:(x.title||[])[0]||'',confidence:Math.round(cand.sim*100),source:'Crossref'};
   issue.lookupState='found';issue.lookupMessage=`Encontrado: ${issue.suggestion.title}. Similaridade do título: ${issue.suggestion.confidence}%. Confira também ano e periódico antes de aplicar.`;
- }catch(e){if(S.doc!==importDoc)return;issue.lookupState='error';issue.lookupMessage=e.name==='TimeoutError'?'A busca demorou mais de 15 segundos. Tente novamente; o XML continua carregado.':'Não foi possível consultar o Crossref agora. Tente novamente; o XML continua carregado.';}
- finally{if(S.doc===importDoc){renderReview();lucide.createIcons();}}
+ }catch(e){if(S.doc!==importDoc)return;if(options.signal?.aborted){issue.lookupState='idle';return;}issue.lookupState='error';issue.lookupMessage=e.name==='TimeoutError'?'A busca demorou mais de 15 segundos. Tente novamente; o XML continua carregado.':'Não foi possível consultar o Crossref agora. Tente novamente; o XML continua carregado.';}
+ finally{if(S.doc===importDoc&&!options.quiet){renderReview();lucide.createIcons();}}
+}
+function cancelBatch(){
+ B.run++;B.controller?.abort();B.controller=null;
+ if(B.running)B.cancelled=true;
+ B.running=false;renderBatchStatus();
+}
+function renderBatchStatus(){
+ const panel=$('batchAnalysisPanel');if(!panel)return;
+ panel.hidden=!S.doc;
+ const button=$('analyzeAllBtn');if(button){button.disabled=B.running||!S.doc;button.textContent=B.running?'Analisando currículo…':B.started?'Atualizar análise completa':'Analisar currículo inteiro';}
+ const stop=$('cancelBatchBtn');if(stop)stop.hidden=!B.running;
+ const title=$('batchAnalysisTitle'),text=$('batchAnalysisText'),bar=$('batchAnalysisBar'),results=$('batchAnalysisResults');
+ if(title)title.textContent=B.running?`Consultando artigos: ${B.done} de ${B.total}`:B.started?(B.cancelled?'Análise interrompida; resultados preservados':'Análise do currículo concluída'):'Seu XML está pronto para a análise completa';
+ if(text)text.textContent=B.started?`${B.done}/${B.total} artigos consultados • ${B.found} com sugestões • ${B.empty} sem correspondência • ${B.errors} falhas de consulta. ${B.manual} outras pendências exigem conferência manual. Nenhuma alteração aplicada ao XML.`:'Um clique confere todos os registros e busca os dados dos artigos com pendências no Crossref. Você aprova as sugestões depois. A consulta pode levar alguns minutos.';
+ if(bar)bar.style.width=`${B.total?Math.round(B.done/B.total*100):B.started?100:0}%`;
+ if(results){const issues=openIssues().filter(i=>i.kind==='enrich'&&i.item.type==='artigo'&&['found','empty','error'].includes(i.lookupState));results.innerHTML=issues.map(i=>`<button type="button" class="batch-result" data-review-issue="${esc(i.id)}"><span>${esc(short(i.item.title,115))}</span><strong>${i.lookupState==='found'?'Sugestão disponível':i.lookupState==='empty'?'Sem correspondência':'Tentar novamente'}</strong></button>`).join('');}
+}
+async function analyzeAll(){
+ if(B.running)return;if(!S.doc)return choose();
+ audit(false);
+ const issues=openIssues(),articles=issues.filter(i=>i.kind==='enrich'&&i.item.type==='artigo');
+ const run=++B.run,doc=S.doc;B.controller=new AbortController();
+ Object.assign(B,{running:true,started:true,cancelled:false,total:articles.length,done:0,found:0,empty:0,errors:0,manual:issues.length-articles.length});
+ renderBatchStatus();let cursor=0;
+ async function worker(){while(B.running&&B.run===run&&S.doc===doc){const issue=articles[cursor++];if(!issue)return;
+  if(!['found','empty'].includes(issue.lookupState))await lookupCrossref(issue,{quiet:true,signal:B.controller.signal});
+  if(B.run!==run||S.doc!==doc)return;
+  B.done++;if(issue.lookupState==='found')B.found++;else if(issue.lookupState==='empty')B.empty++;else B.errors++;
+  renderBatchStatus();
+  await new Promise(resolve=>setTimeout(resolve,350));
+ }}
+ try{await Promise.all([worker(),worker()]);}
+ finally{if(B.run===run&&S.doc===doc){B.running=false;B.controller=null;const first=openIssues().findIndex(i=>i.lookupState==='found');if(first>=0)S.cursor=first;renderReview();renderBatchStatus();lucide.createIcons();toast(`Análise concluída: ${B.found} artigos com sugestões; ${B.empty} sem correspondência; ${B.errors} falhas de consulta.`);}}
 }
 function titleSimilarity(a,b){const A=new Set(norm(a).split(' ').filter(x=>x.length>2)),B=new Set(norm(b).split(' ').filter(x=>x.length>2));if(!A.size||!B.size)return 0;const inter=[...A].filter(x=>B.has(x)).length;return (2*inter)/(A.size+B.size)}
 function applySuggestion(issue){if(!issue.suggestion)return;['doi','year','venue'].forEach(k=>{const el=$(`fix-${k}`);if(el&&issue.suggestion[k]&&!el.value)el.value=issue.suggestion[k]});renderSuggestionHints(issue)}
@@ -87,7 +122,7 @@ function table(){const search=norm($('productionSearch')?.value||''),sel=$('prod
 function filesMini(){const box=$('recentEvidence');if(!S.files.length){box.className='evidence-mini empty-state';box.innerHTML='<i data-lucide="inbox"></i><p>Adicione certificados e PDFs. Eles entram na fila para comparação com seu Lattes.</p>';return}box.className='evidence-mini';box.innerHTML=S.files.slice(0,4).map(f=>`<div class="evidence-mini-row"><div class="file-icon"><i data-lucide="file-text"></i></div><div class="file-meta"><strong>${esc(f.name)}</strong><span>${esc(f.classification)} • ${f.confidence}%</span></div></div>`).join('')}
 function filesList(){$('inboxCount').textContent=S.files.length;$('evidenceList').innerHTML=S.files.length?S.files.map(f=>`<div class="evidence-card"><div class="file-icon"><i data-lucide="file-text"></i></div><div><h4>${esc(f.name)}</h4><p>${Math.max(1,Math.round(f.size/1024))} KB ${f.match?`• possível correspondência: ${esc(short(f.match.title,60))}`:''}</p></div><div class="classification"><strong>${esc(f.classification)} • ${f.confidence}%</strong><div class="confidence"><span style="width:${f.confidence}%"></span></div></div><button class="icon-btn" data-remove-file="${f.id}"><i data-lucide="x"></i></button></div>`).join(''):'<div class="empty-state roomy"><i data-lucide="folder-open"></i><p>Nenhum comprovante adicionado.</p></div>'}
 function renderReviewProgress(){const total=S.issues.length,done=S.issues.filter(x=>x.status!=='open').length,pct=total?Math.round(done/total*100):S.xmlName?100:0;$('reviewProgressPct').textContent=`${pct}%`;$('reviewProgressBar').style.width=`${pct}%`;$('reviewProgressTitle').textContent=!S.xmlName?'Importe um XML para começar':total?`${done} de ${total} decisões concluídas`:'Nenhuma pendência encontrada';$('reviewProgressText').textContent=S.xmlName?`${openIssues().length} item(ns) ainda precisam de uma decisão rápida. ${S.changes.length} alteração(ões) já foram aplicadas à cópia.`:'As correções aprovadas serão aplicadas em uma cópia local do seu XML.'}
-function renderReview(){const box=$('reviewWorkspace'),open=openIssues();
+function renderReview(){renderBatchStatus();const box=$('reviewWorkspace'),open=openIssues();
  const safe=open.filter(i=>i.kind==='duplicate'&&i.confidence>=99).length;
  const safeButton=$('safeFixBtn');safeButton.disabled=!safe;safeButton.innerHTML=`<i data-lucide="copy-check"></i>Corrigir duplicados exatos (${safe})`;safeButton.title=safe?'Remove registros com DOI idêntico':'Nenhum duplicado exato para corrigir. As demais pendências precisam de revisão.';
  const summary=$('reviewReadingStatus');if(summary){summary.hidden=!S.xmlName;summary.textContent=`XML lido: ${S.items.filter(i=>!i.removed).length} registros. ${open.length} pendências para conferir e ${safe} duplicados com correção automática. DOI ausente é um aviso para conferência; não significa necessariamente erro.`;}
@@ -95,7 +130,7 @@ if(!S.xmlName){box.className='review-workspace empty-state roomy';box.innerHTML=
 function duplicateCard(i){const r=i.item,k=i.keep;return `<article class="review-card"><div class="review-card-head"><div class="review-card-head-left"><div class="review-symbol high"><i data-lucide="copy"></i></div><div><div class="mini-label">${LABEL[r.type].toUpperCase()} • DUPLICIDADE</div><h3>Provavelmente você não precisa dos dois.</h3><p>${esc(i.description)} O Easy Lattes escolheu automaticamente o registro mais completo para manter.</p></div></div><div class="confidence-pill">${i.confidence}% confiança</div></div><div class="review-body"><div class="compare-label">ANTES → DEPOIS</div><div class="duplicate-grid"><div class="record-card keep"><div class="record-top"><span class="record-tag">MANTER</span><strong>${k.complete}% completo</strong></div><h4>${esc(k.title)}</h4><div class="record-meta"><span>${esc(k.year||'sem ano')}</span><span>${esc(k.doi||k.venue||'sem identificador')}</span></div></div><div class="compare-arrow"><i data-lucide="arrow-right"></i></div><div class="record-card remove"><div class="record-top"><span class="record-tag">REMOVER</span><strong>${r.complete}% completo</strong></div><h4>${esc(r.title)}</h4><div class="record-meta"><span>${esc(r.year||'sem ano')}</span><span>${esc(r.doi||r.venue||'sem identificador')}</span></div></div></div></div><div class="review-actions"><div class="review-actions-left"><button class="btn ghost" id="swapDuplicateBtn"><i data-lucide="arrow-left-right"></i>Trocar qual fica</button><button class="btn ghost" id="keepBothBtn">Manter os dois</button></div><div class="review-actions-right"><button class="btn neon" id="acceptDuplicateBtn"><i data-lucide="check"></i>Aceitar e continuar</button></div></div></article>`}
 function enrichCard(i){
  const p=i.item,s=i.suggestion||{};
- const field=(k,label)=>`<div class="field-card"><label for="fix-${k}">${label}</label><input id="fix-${k}" value="${esc(p[k]||'')}" placeholder="${k==='doi'?'10.xxxx/...':k==='year'?'2026':'Periódico / instituição'}"><div class="field-hint">${p[k]?'Valor atual do XML':'Campo vazio no XML'}</div></div>`;
+ const field=(k,label)=>`<div class="field-card"><label for="fix-${k}">${label}</label><input id="fix-${k}" value="${esc(i.draft?.[k]??p[k]??'')}" placeholder="${k==='doi'?'10.xxxx/...':k==='year'?'2026':'Periódico / instituição'}"><div class="field-hint">${p[k]?'Valor atual do XML':'Campo vazio no XML'}</div></div>`;
  const lookup=p.type==='artigo'?`<div class="crossref-box"><div><strong>Próximo passo: buscar os dados deste artigo</strong><p>O XML já foi lido. Consulte o título no Crossref e confira a sugestão antes de aplicar.</p></div><button class="btn secondary" id="crossrefBtn" ${i.lookupState==='loading'?'disabled':''}><i data-lucide="${i.lookupState==='loading'?'loader-circle':'search'}"></i>${i.lookupState==='loading'?'Buscando…':i.lookupState==='error'?'Tentar busca novamente':'Buscar dados do artigo'}</button></div><p class="lookup-feedback" role="status">${esc(i.lookupMessage||'A busca não altera seu XML. Se não houver DOI, você pode manter o registro sem DOI.')}</p>`:'';
  return `<article class="review-card"><div class="review-card-head"><div class="review-card-head-left"><div class="review-symbol ${i.severity}"><i data-lucide="wand-sparkles"></i></div><div><div class="mini-label">${LABEL[p.type].toUpperCase()} • CONFERIR</div><h3>${esc(i.title)}</h3><p>${esc(p.title)}</p></div></div>${s.confidence?`<div class="confidence-pill">${s.confidence}% similaridade do título</div>`:''}</div><div class="review-body">${lookup}<div class="compare-label">CONFIRA OS CAMPOS</div><div class="editor-grid">${field('doi','DOI')}${field('year','Ano')}${field('venue',p.type==='artigo'?'Periódico / revista':'Instituição / local')}</div></div><div class="review-actions"><div class="review-actions-left"><button class="btn ghost" id="ignoreIssueBtn">${p.type==='artigo'&&!p.doi?'Manter sem DOI':'Ignorar por enquanto'}</button>${s.confidence?'<button class="btn secondary" id="applySuggestionBtn"><i data-lucide="sparkles"></i>Preencher sugestões</button>':''}</div><div class="review-actions-right"><button class="btn neon" id="applyEnrichBtn"><i data-lucide="check"></i>Aplicar e continuar</button></div></div></article>`;
 }
@@ -108,6 +143,7 @@ function prev(){if(S.cursor>0)S.cursor--;renderReview();lucide.createIcons()}
 $$('.nav-item').forEach(b=>b.onclick=()=>view(b.dataset.view));document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g)view(g.dataset.go);const rm=e.target.closest('[data-remove-file]');if(rm){S.files=S.files.filter(f=>f.id!==rm.dataset.removeFile);render()}});
 const choose=()=>{$('xmlInput').value='';$('xmlInput').click()};['openXmlBtn','heroXmlBtn','replaceXmlBtn'].forEach(id=>$(id).onclick=choose);$('xmlInput').onchange=e=>e.target.files[0]&&loadXml(e.target.files[0]);$('demoBtn').onclick=demo;$('startReviewBtn').onclick=()=>S.xmlName?view('audit'):choose();
 const evChoose=()=>{view('inbox');$('evidenceInput').value='';$('evidenceInput').click()};['addEvidenceMini','addEvidenceBtn','browseEvidenceBtn','quickEvidenceBtn'].forEach(id=>$(id).onclick=evChoose);$('evidenceInput').onchange=e=>addFiles([...e.target.files]);$('clearEvidenceBtn').onclick=()=>{S.files=[];render()};const dz=$('dropzone');['dragenter','dragover'].forEach(x=>dz.addEventListener(x,e=>{e.preventDefault();dz.classList.add('drag')}));['dragleave','drop'].forEach(x=>dz.addEventListener(x,e=>{e.preventDefault();dz.classList.remove('drag')}));dz.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
-$('productionSearch').oninput=table;$('productionFilter').onchange=table;$('rerunAuditBtn').onclick=()=>{audit(false);render();toast(`XML relido: ${S.items.filter(i=>!i.removed).length} registros e ${openIssues().length} pendências. Use “Buscar dados do artigo” para consultar dados externos.`)};$('safeFixBtn').onclick=applySafeFixes;$('prevIssueBtn').onclick=prev;$('nextIssueBtn').onclick=next;$('downloadXmlBtn').onclick=downloadXml;
-document.addEventListener('click',e=>{const issue=openIssues()[S.cursor];if(!issue)return;if(e.target.closest('#acceptDuplicateBtn'))applyDuplicate(issue);if(e.target.closest('#keepBothBtn'))keepBoth(issue);if(e.target.closest('#swapDuplicateBtn'))swapDuplicate(issue);if(e.target.closest('#ignoreIssueBtn'))resolveIssue(issue,'ignored');if(e.target.closest('#applyEnrichBtn'))applyEnrich(issue);if(e.target.closest('#crossrefBtn'))lookupCrossref(issue);if(e.target.closest('#applySuggestionBtn'))applySuggestion(issue)});
+$('productionSearch').oninput=table;$('productionFilter').onchange=table;$('rerunAuditBtn').onclick=()=>{audit(false);render();toast(`XML relido: ${S.items.filter(i=>!i.removed).length} registros e ${openIssues().length} pendências. Use “Buscar dados do artigo” para consultar dados externos.`)};$('analyzeAllBtn').onclick=analyzeAll;$('cancelBatchBtn').onclick=()=>{cancelBatch();renderBatchStatus();};$('safeFixBtn').onclick=applySafeFixes;$('prevIssueBtn').onclick=prev;$('nextIssueBtn').onclick=next;$('downloadXmlBtn').onclick=downloadXml;
+document.addEventListener('input',e=>{if(!/^fix-(doi|year|venue)$/.test(e.target.id))return;const issue=openIssues()[S.cursor];if(issue){issue.draft=issue.draft||{};issue.draft[e.target.id.slice(4)]=e.target.value;}});
+document.addEventListener('click',e=>{const result=e.target.closest('[data-review-issue]');if(result){const at=openIssues().findIndex(i=>i.id===result.dataset.reviewIssue);if(at>=0){S.cursor=at;renderReview();$('reviewWorkspace').scrollIntoView({behavior:'smooth',block:'start'});lucide.createIcons();}return;}const issue=openIssues()[S.cursor];if(!issue)return;if(e.target.closest('#acceptDuplicateBtn'))applyDuplicate(issue);if(e.target.closest('#keepBothBtn'))keepBoth(issue);if(e.target.closest('#swapDuplicateBtn'))swapDuplicate(issue);if(e.target.closest('#ignoreIssueBtn'))resolveIssue(issue,'ignored');if(e.target.closest('#applyEnrichBtn'))applyEnrich(issue);if(e.target.closest('#crossrefBtn'))lookupCrossref(issue);if(e.target.closest('#applySuggestionBtn'))applySuggestion(issue)});
 render();lucide.createIcons();
