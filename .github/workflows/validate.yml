@@ -30,6 +30,13 @@ jobs:
           node --check discovery-v5.js
           node --check platform-v6.js
           node --check identity-v6.js
+          node --check product-v9.js
+          node --check profile-model-v9.mjs
+          node --check trajectory-model-v10.mjs
+          node --check trajectory-view-v10.js
+
+      - name: Validate full trajectory analysis
+        run: node --test tests/trajectory.test.mjs
 
       - name: Install function dependencies
         working-directory: functions

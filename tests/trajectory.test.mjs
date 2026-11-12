@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {analyzeProfile,careerPlan} from '../trajectory-model-v10.mjs';
+import {renderTrajectory,evidenceMarkup} from '../trajectory-view-v10.js';
+// Minimal standards-style XML elements. Browser integration separately checks native DOMParser.
+class Element{
+ constructor(tag,attributes={},children=[]){this.tagName=tag;this.data=Object.fromEntries(Object.entries(attributes).map(([k,v])=>[k,String(v)]));this.attributes=Object.entries(this.data).map(([name,value])=>({name,value}));this.children=children;children.forEach(c=>c.parentElement=this);}
+ getAttribute(k){return this.data[k]??null;}hasAttribute(k){return k in this.data;}
+ querySelectorAll(selector){const all=this.children.flatMap(c=>[c,...c.querySelectorAll('*')]);return selector==='*'?all:all.filter(c=>selector.split(',').map(s=>s.trim()).includes(c.tagName));}
+ closest(tag){for(let n=this;n;n=n.parentElement)if(n.tagName===tag)return n;return null;}
+}
+const E=(...args)=>new Element(...args);
+function fixture(){const articles=Array.from({length:123},(_,i)=>E('ARTIGO-PUBLICADO',{'SEQUENCIA-PRODUCAO':i+1},[
+ E('DADOS-BASICOS-DO-ARTIGO',{'TITULO-DO-ARTIGO':`Ecologia e água ${i}`,'ANO-DO-ARTIGO':2020+i%7,DOI:i%3?'10.1000/'+i:''}),E('DETALHAMENTO-DO-ARTIGO',{'TITULO-DO-PERIODICO-OU-REVISTA':'Revista de teste'}),E('AUTORES',{'NOME-COMPLETO-DO-AUTOR':'Docente de teste'}),E('AUTORES',{'NOME-COMPLETO-DO-AUTOR':i<2?'Ana Silva':'João Souza'}),E('PALAVRAS-CHAVE',{'PALAVRA-CHAVE-1':'Ecologia'})]));
+ const root=E('CURRICULO-VITAE',{},[
+ E('DADOS-GERAIS',{'NOME-COMPLETO':'Docente de teste'},[E('RESUMO-CV',{'TEXTO-RESUMO-CV-RH':'Atuação declarada em ecologia.'}),E('FORMACAO-ACADEMICA-TITULACAO',{},[E('DOUTORADO',{'NOME-CURSO':'Ecologia','ANO-DE-CONCLUSAO':'2018'})]),E('ATUACOES-PROFISSIONAIS',{},[E('ATUACAO-PROFISSIONAL',{'NOME-INSTITUICAO':'Universidade de teste','SEQUENCIA-ATIVIDADE':1},[
+ E('VINCULOS',{'SEQUENCIA-HISTORICO':1,'ANO-INICIO':2019,'FLAG-PERIODO':'ATUAL'}),E('ATIVIDADES-DE-ENSINO',{},[E('ENSINO',{'NOME-CURSO':'Biologia','ANO-INICIO':2020})]),E('ATIVIDADES-DE-PARTICIPACAO-EM-PROJETO',{},[E('PARTICIPACAO-EM-PROJETO',{},[
+ E('PROJETO-DE-PESQUISA',{'NATUREZA':'PESQUISA','NOME-DO-PROJETO':'Águas','ANO-INICIO':2021},[E('PRODUCOES-CT-DO-PROJETO',{},[E('PRODUCAO-CT-DO-PROJETO',{'SEQUENCIA-PRODUCAO-CT':1,'TITULO-DA-PRODUCAO-CT':'Ecologia e água 0'})])]),
+ E('PROJETO-DE-PESQUISA',{'NATUREZA':'EXTENSAO','NOME-DO-PROJETO':'Comunidade','ANO-INICIO':2022})])])])]),E('IDIOMAS',{},[E('IDIOMA',{'IDIOMA':'Inglês'})]),E('PREMIOS-TITULOS',{},[E('PREMIO-TITULO',{'NOME-DO-PREMIO-OU-TITULO':'Prêmio de teste','ANO-DA-PREMIACAO':2023})])]),
+ E('PRODUCAO-BIBLIOGRAFICA',{},[E('ARTIGOS-PUBLICADOS',{},articles),E('ARTIGOS-ACEITOS-PARA-PUBLICACAO',{},[E('ARTIGO-ACEITO-PARA-PUBLICACAO',{},[E('DADOS-BASICOS-DO-ARTIGO',{'TITULO-DO-ARTIGO':'Novo estudo','ANO-DO-ARTIGO':2026})])])]),
+ E('PRODUCAO-TECNICA',{},[E('SOFTWARE',{'SEQUENCIA-PRODUCAO':1},[E('DADOS-BASICOS-DO-SOFTWARE',{'TITULO-DO-SOFTWARE':'Programa','ANO':2025})])]),
+ E('OUTRA-PRODUCAO',{},[E('PRODUCAO-ARTISTICA-CULTURAL',{},[E('OBRA-ARTISTICA',{'SEQUENCIA-PRODUCAO':1,'TITULO':'Obra','ANO':2024})]),E('ORIENTACOES-CONCLUIDAS',{},[E('ORIENTACOES-CONCLUIDAS-PARA-MESTRADO',{},[E('DADOS-BASICOS-DA-ORIENTACAO-CONCLUIDA-DE-MESTRADO',{'TITULO':'Águas e sociedade','ANO':2024}),E('DETALHAMENTO-DA-ORIENTACAO-CONCLUIDA-DE-MESTRADO',{'NOME-DO-ORIENTADO':'Ana Silva'})])])]),
+ E('DADOS-COMPLEMENTARES',{},[E('CONSELHO-COMISSAO-E-CONSULTORIA',{'SEQUENCIA-FUNCAO-ATIVIDADE':1,'CARGO-OU-FUNCAO':'Conselho','ANO-INICIO':2022}),E('ATIVIDADE-NAO-MAPEADA',{'SEQUENCIA-PRODUCAO':55,TITULO:'Registro adicional',ANO:2020})])]);
+ return {documentElement:root,querySelectorAll:s=>root.querySelectorAll(s),querySelector:s=>root.querySelectorAll(s)[0]||null};
+}
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+test('all articles are included independently of DOI and pending metadata',()=>{const m=analyzeProfile(fixture(),2026);assert.equal(m.counts.articles,123);assert.equal(m.groups.articles.filter(r=>!r.doi).length,41);assert.equal(m.counts.accepted,1);assert.ok(m.portrait.includes('Todos os 123 artigos'));assert.equal(m.themes.declared.find(t=>t.term==='Ecologia').count,123);});
+test('coverage includes formation professional work teaching extension innovation management and arts',()=>{const m=analyzeProfile(fixture(),2026);for(const k of ['formation','professional','research','extension','teaching','technical','advising','committees','arts','languages','awards'])assert.equal(m.counts[k],1,k);assert.equal(m.coverage.sections.length,5);assert.equal(m.coverage.unclassified.length,1);assert.ok(m.coverage.attributes>400);assert.equal(m.identity.summary,'Atuação declarada em ecologia.');});
+test('project references do not create additional productions; explicit links resolve to evidence',()=>{const m=analyzeProfile(fixture(),2026);assert.equal(m.links.length,1);assert.equal(m.links[0].targets.length,1);const target=m.records.find(r=>r.id===m.links[0].targets[0]);assert.equal(target.title,'Ecologia e água 0');assert.equal(m.collaborators.list.some(x=>x.name==='Docente de teste'),false);assert.equal(m.collaborators.studentAuthored.length,2);});
+test('periods cover lifetime while recommendations change with goal and use actual evidence',()=>{const m=analyzeProfile(fixture(),2026);assert.equal(m.period.first,2018);assert.equal(m.fullTimeline.length,9);assert.equal(m.domains.length,7);assert.notDeepEqual(careerPlan(m,'extension'),careerPlan(m,'research'));assert.ok(careerPlan(m,'technology').some(x=>x[1].includes('1 produções técnicas')));});
+test('evidence rendering escapes source strings and explains limits',()=>{const m=analyzeProfile(fixture(),2026);m.records[0].title='<script>test</script>';const html=evidenceMarkup(m,[m.records[0].id],esc);assert.ok(html.includes('&lt;script&gt;'));assert.equal(html.includes('<script>'),false);const report=renderTrajectory(m,esc);assert.ok(report.includes('cobertura'));assert.ok(report.includes('Consulta externa')||report.includes('consulta externa'));assert.ok(report.includes('data-evidence='));});
