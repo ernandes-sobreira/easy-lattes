@@ -86,11 +86,11 @@ function cancelBatch(){
 function renderBatchStatus(){
  const panel=$('batchAnalysisPanel');if(!panel)return;
  panel.hidden=!S.doc;
- const button=$('analyzeAllBtn');if(button){button.disabled=B.running||!S.doc;button.textContent=B.running?'Analisando currículo…':B.started?'Atualizar análise completa':'Analisar currículo inteiro';}
+ const button=$('analyzeAllBtn');if(button){button.disabled=B.running||!S.doc;button.textContent=B.running?'Consultando artigos…':B.started?'Atualizar consulta dos artigos':'Buscar dados dos artigos';}
  const stop=$('cancelBatchBtn');if(stop)stop.hidden=!B.running;
  const title=$('batchAnalysisTitle'),text=$('batchAnalysisText'),bar=$('batchAnalysisBar'),results=$('batchAnalysisResults');
- if(title)title.textContent=B.running?`Consultando artigos: ${B.done} de ${B.total}`:B.started?(B.cancelled?'Análise interrompida; resultados preservados':'Análise do currículo concluída'):'Seu XML está pronto para a análise completa';
- if(text)text.textContent=B.started?`${B.done}/${B.total} artigos consultados • ${B.found} com sugestões • ${B.empty} sem correspondência • ${B.errors} falhas de consulta. ${B.manual} outras pendências exigem conferência manual. A busca não altera o XML. ${S.changes.length} alterações aprovadas à cópia.`:'Um clique confere todos os registros e busca os dados dos artigos com pendências no Crossref. Você aprova as sugestões depois. A consulta pode levar alguns minutos.';
+ if(title)title.textContent=B.running?`Consultando artigos: ${B.done} de ${B.total}`:B.started?(B.cancelled?'Análise interrompida; resultados preservados':'Consulta dos artigos concluída'):'Consulta bibliográfica dos artigos com pendências';
+ if(text)text.textContent=B.started?`${B.done}/${B.total} artigos consultados • ${B.found} com sugestões • ${B.empty} sem correspondência • ${B.errors} falhas de consulta. ${B.manual} outras pendências exigem conferência manual. A busca não altera o XML. ${S.changes.length} alterações aprovadas à cópia.`:'Consulte os artigos com pendências no Crossref. Pesquisa, extensão e as demais áreas são descritas em Meu perfil e O que melhorar. Você aprova as sugestões depois.';
  if(bar)bar.style.width=`${B.total?Math.round(B.done/B.total*100):B.started?100:0}%`;
  if(results){const issues=openIssues().filter(i=>i.kind==='enrich'&&i.item.type==='artigo'&&['found','empty','error'].includes(i.lookupState));results.innerHTML=issues.map(i=>`<button type="button" class="batch-result" data-review-issue="${esc(i.id)}"><span>${esc(short(i.item.title,115))}</span><strong>${i.lookupState==='found'?'Sugestão disponível':i.lookupState==='empty'?'Sem correspondência':'Tentar novamente'}</strong></button>`).join('');}
 }
