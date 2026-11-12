@@ -1,4 +1,4 @@
-import {firebaseConfig} from './firebase-settings.js';
+import {firebaseConfig} from './firebase-settings.js?v=20261112-1';
 
 const STORAGE_KEY='easy-lattes:approved-activities:v1';
 const status=document.getElementById('cloudStatus');
@@ -32,6 +32,7 @@ async function boot(){
      user=next;
      signIn.hidden=!!next;
      signOut.hidden=!next;
+     window.__easyLattesCloudUser=next?{uid:next.uid,email:next.email}:null;
      if(account)account.textContent=next ? (next.email||'Conta conectada'):'Sem conta conectada';
      if(!next){if(importButton)importButton.hidden=true;message('Modo local. Entre com Google para sincronizar registros.');return}
      localToImport=localRecords().slice();
@@ -39,8 +40,8 @@ async function boot(){
      await connectUser(next);
    },err=>message('Não foi possível verificar a conta: '+err.code));
    signIn?.addEventListener('click',async()=>{
-     try{await authentication.signInWithPopup(auth,new authentication.GoogleAuthProvider())}
-     catch(err){message(err.code==='auth/unauthorized-domain'?'Domínio não autorizado no Firebase Authentication.': 'Não foi possível entrar: '+err.code)}
+     try{await authentication.signInWithPopup(auth,new authentication.GoogleAuthProvider().setCustomParameters({prompt:'select_account'}))}
+     catch(err){message(err.code==='auth/popup-blocked'?'Seu navegador bloqueou a janela Google. Permita pop-ups para este site e tente novamente.':err.code==='auth/unauthorized-domain'?'Domínio não autorizado no Firebase Authentication.': 'Não foi possível entrar: '+err.code)}
    });
    signOut?.addEventListener('click',async()=>{
      if(!confirm('Sair da conta? Os registros sincronizados serão retirados deste navegador, mas continuarão na sua conta Firebase.'))return;

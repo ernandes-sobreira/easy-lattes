@@ -61,11 +61,13 @@
             <button class="btn ghost" id="cloudSignIn" type="button">Entrar com Google</button>
             <button class="btn ghost" id="cloudSignOut" type="button" hidden>Sair</button>
           </div>
+          <button class="btn ghost" id="quickEvidenceBtn" type="button"><i data-lucide="file-up"></i>Importar arquivos</button>
           <button class="btn ghost" id="demoBtn"><i data-lucide="sparkles"></i>Carregar demo</button>
           <button class="btn primary" id="openXmlBtn"><i data-lucide="upload"></i>Importar XML do Lattes</button>
           <input type="file" id="xmlInput" accept=".xml,text/xml,application/xml" hidden />
         </div>
       </header>
+      <p class="cloud-status" id="cloudStatus" role="status">Verificando conexão com Google…</p>
 
       <section class="view active" id="view-dashboard">
         <div class="hero-card">
@@ -85,11 +87,11 @@
             <div class="score-caption" id="scoreCaption">Sem análise ainda</div>
           </div>
         </div>
-        <p class="cloud-status" id="cloudStatus" role="status">Verificando configuração da sincronização...</p>
+
         <section class="stage1-panel" aria-labelledby="stage1Title">
           <div class="stage1-panel-head">
             <div><div class="panel-kicker">ETAPA 1 · CADASTRO SIMPLES</div><h3 id="stage1Title">Atividades confirmadas neste dispositivo: <span id="stage1SavedCount">0</span></h3>
-            <p>O reconhecimento é uma sugestão automática por regras e OCR, não uma conferência por IA generativa. Revise antes de confirmar. Sem configurar o Firebase, os dados ficam somente neste navegador e podem ser perdidos se você limpar seus dados.</p></div>
+            <p>O reconhecimento é uma sugestão automática por regras e OCR, não uma conferência por IA generativa. Revise antes de confirmar. Entre com Google para sincronizar as atividades confirmadas. Os arquivos originais são lidos neste navegador; não ficam armazenados na conta.</p></div>
             <button class="btn ghost" id="stage1Export" type="button"><i data-lucide="download"></i>Exportar meus registros</button>
           </div>
           <div id="stage1SavedList"></div>
@@ -107,7 +109,7 @@
           </section>
           <section class="panel">
             <div class="panel-head"><div><div class="panel-kicker">COMPROVANTES</div><h3>Caixa acadêmica</h3></div><button class="text-btn" id="addEvidenceMini">Adicionar <i data-lucide="plus"></i></button></div>
-            <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.doc,.docx" hidden />
+            <input type="file" id="evidenceInput" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,.csv,.md,.docx" hidden />
             <div id="recentEvidence" class="evidence-mini empty-state"><i data-lucide="inbox"></i><p>Adicione certificados e PDFs. Eles entram na fila para comparação com seu Lattes.</p></div>
           </section>
         </div>
@@ -131,7 +133,7 @@
 
       <section class="view" id="view-inbox">
         <div class="section-intro"><div><div class="eyebrow">CAIXA ACADÊMICA</div><h2>Jogue sua vida acadêmica aqui.</h2><p>Print, certificado, PDF ou apenas o título de uma atividade. O Easy Lattes tenta transformar tudo em um registro revisável.</p></div><div class="intake-actions"><button class="btn ghost" id="manualEntryBtn"><i data-lucide="pencil-line"></i>Digitar atividade</button><button class="btn primary" id="addEvidenceBtn"><i data-lucide="plus"></i>Adicionar arquivos</button></div></div>
-        <div class="dropzone" id="dropzone"><div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Arraste comprovantes para cá</h3><p>PDF, print, JPG, PNG, TXT, DOC ou DOCX • vários de uma vez</p><button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button></div>
+        <div class="dropzone" id="dropzone"><div class="drop-icon"><i data-lucide="cloud-upload"></i></div><h3>Arraste comprovantes para cá</h3><p>PDF, JPG, PNG, WEBP, TXT, CSV ou DOCX • vários de uma vez • até 30 MB por arquivo</p><button class="btn secondary" id="browseEvidenceBtn">Escolher arquivos</button></div>
         <section class="smart-intake-panel">
           <div class="smart-intake-head"><div><div class="mini-label neon-text">ENTRADA INTELIGENTE</div><h3>O documento vira um registro para o Lattes.</h3><p>PDFs têm texto extraído no navegador; prints e imagens passam por OCR local. Você confere os campos antes de qualquer inclusão no XML.</p></div><div class="smart-intake-badge"><strong id="smartQueueCount">0</strong> para revisar</div></div>
           <div class="smart-status" id="smartIntakeStatus"><i data-lucide="shield-check"></i><span>Processamento local ativo. A primeira leitura de imagem pode demorar um pouco porque o OCR é carregado no navegador.</span></div>
@@ -203,8 +205,8 @@
 
   <div class="toast-stack" id="toastStack"></div>
   <script src="bridge-v3.js?v=20260917-1200"></script>
-  <script src="app-v2.js?v=20260917-1200" type="module"></script>
-  <script src="career-v3.js?v=20261109-3" type="module"></script>
-  <script src="cloud-v1.js?v=20261109-2" type="module"></script>
+  <script src="app-v2.js?v=20261112-1" type="module"></script>
+  <script src="career-v3.js?v=20261112-1" type="module"></script>
+  <script src="cloud-v1.js?v=20261112-1" type="module"></script>
 </body>
 </html>
