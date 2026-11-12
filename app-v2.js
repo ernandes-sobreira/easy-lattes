@@ -58,14 +58,20 @@ async function lookupCrossref(issue,options={}){
  const importDoc=S.doc;
  issue.lookupState='loading';issue.lookupMessage='Buscando título, ano e periódico no Crossref…';if(!options.quiet){renderReview();lucide.createIcons();}
  try{
-  const url=`https://api.crossref.org/works?rows=5&query.title=${encodeURIComponent(p.title)}`;
+  const url=`https://api.crossref.org/works?rows=10&query.title=${encodeURIComponent(p.title)}`;
   const r=await fetch(url,{headers:{Accept:'application/json'},signal:AbortSignal.any([AbortSignal.timeout(15000),options.signal].filter(Boolean))});
   if(!r.ok)throw Error('network');
   const data=await r.json();
   if(S.doc!==importDoc)return;
-  const candidates=(data?.message?.items||[]).map(x=>({x,sim:titleSimilarity(p.title,(x.title||[])[0]||'')})).sort((a,b)=>b.sim-a.sim);
+  const candidates=(data?.message?.items||[]).map(x=>{
+   const title=(x.title||[])[0]||'',year=x?.published?.['date-parts']?.[0]?.[0]||x?.issued?.['date-parts']?.[0]?.[0]||'',venue=(x['container-title']||[])[0]||'';
+   const sim=titleSimilarity(p.title,title),exact=norm(p.title)===norm(title);
+   const yearOk=!p.year||!year||Math.abs(Number(p.year)-Number(year))<=1;
+   const venueOk=!p.venue||!venue||norm(p.venue)===norm(venue)||titleSimilarity(p.venue,venue)>=.55;
+   return{x,sim,compatible:yearOk&&venueOk,rank:sim+(exact?.5:0)+(p.year&&String(year)===p.year?.25:0)+(p.venue&&norm(p.venue)===norm(venue)?.25:0)};
+  }).filter(c=>c.compatible).sort((a,b)=>b.rank-a.rank);
   const cand=candidates[0];
-  if(!cand||cand.sim<.8){issue.lookupState='empty';issue.lookupMessage='Não encontrei um artigo com título suficientemente próximo no Crossref. Alguns artigos não têm DOI. Confira manualmente ou escolha “Manter sem DOI”.';return;}
+  if(!cand||cand.sim<.8){issue.lookupState='empty';issue.lookupMessage='Não encontrei correspondência compatível com título, ano e revista no Crossref. Alguns artigos não têm DOI. Confira manualmente ou escolha “Manter sem DOI”.';return;}
   const x=cand.x,year=x?.published?.['date-parts']?.[0]?.[0]||x?.issued?.['date-parts']?.[0]?.[0]||'';
   issue.suggestion={doi:x.DOI||'',year:String(year||''),venue:(x['container-title']||[])[0]||'',title:(x.title||[])[0]||'',confidence:Math.round(cand.sim*100),source:'Crossref'};
   issue.lookupState='found';issue.lookupMessage=`Encontrado: ${issue.suggestion.title}. Similaridade do título: ${issue.suggestion.confidence}%. Confira também ano e periódico antes de aplicar.`;
@@ -84,7 +90,7 @@ function renderBatchStatus(){
  const stop=$('cancelBatchBtn');if(stop)stop.hidden=!B.running;
  const title=$('batchAnalysisTitle'),text=$('batchAnalysisText'),bar=$('batchAnalysisBar'),results=$('batchAnalysisResults');
  if(title)title.textContent=B.running?`Consultando artigos: ${B.done} de ${B.total}`:B.started?(B.cancelled?'Análise interrompida; resultados preservados':'Análise do currículo concluída'):'Seu XML está pronto para a análise completa';
- if(text)text.textContent=B.started?`${B.done}/${B.total} artigos consultados • ${B.found} com sugestões • ${B.empty} sem correspondência • ${B.errors} falhas de consulta. ${B.manual} outras pendências exigem conferência manual. Nenhuma alteração aplicada ao XML.`:'Um clique confere todos os registros e busca os dados dos artigos com pendências no Crossref. Você aprova as sugestões depois. A consulta pode levar alguns minutos.';
+ if(text)text.textContent=B.started?`${B.done}/${B.total} artigos consultados • ${B.found} com sugestões • ${B.empty} sem correspondência • ${B.errors} falhas de consulta. ${B.manual} outras pendências exigem conferência manual. A busca não altera o XML. ${S.changes.length} alterações aprovadas à cópia.`:'Um clique confere todos os registros e busca os dados dos artigos com pendências no Crossref. Você aprova as sugestões depois. A consulta pode levar alguns minutos.';
  if(bar)bar.style.width=`${B.total?Math.round(B.done/B.total*100):B.started?100:0}%`;
  if(results){const issues=openIssues().filter(i=>i.kind==='enrich'&&i.item.type==='artigo'&&['found','empty','error'].includes(i.lookupState));results.innerHTML=issues.map(i=>`<button type="button" class="batch-result" data-review-issue="${esc(i.id)}"><span>${esc(short(i.item.title,115))}</span><strong>${i.lookupState==='found'?'Sugestão disponível':i.lookupState==='empty'?'Sem correspondência':'Tentar novamente'}</strong></button>`).join('');}
 }
@@ -105,7 +111,7 @@ async function analyzeAll(){
  try{await Promise.all([worker(),worker()]);}
  finally{if(B.run===run&&S.doc===doc){B.running=false;B.controller=null;const first=openIssues().findIndex(i=>i.lookupState==='found');if(first>=0)S.cursor=first;renderReview();renderBatchStatus();lucide.createIcons();toast(`Análise concluída: ${B.found} artigos com sugestões; ${B.empty} sem correspondência; ${B.errors} falhas de consulta.`);}}
 }
-function titleSimilarity(a,b){const A=new Set(norm(a).split(' ').filter(x=>x.length>2)),B=new Set(norm(b).split(' ').filter(x=>x.length>2));if(!A.size||!B.size)return 0;const inter=[...A].filter(x=>B.has(x)).length;return (2*inter)/(A.size+B.size)}
+function titleSimilarity(a,b){const A=norm(a).split(' ').filter(x=>x.length>2),B=norm(b).split(' ').filter(x=>x.length>2);if(!A.length||!B.length)return 0;const counts=new Map();B.forEach(w=>counts.set(w,(counts.get(w)||0)+1));let inter=0;A.forEach(w=>{if(counts.get(w)>0){inter++;counts.set(w,counts.get(w)-1)}});return (2*inter)/(A.length+B.length)}
 function applySuggestion(issue){if(!issue.suggestion)return;['doi','year','venue'].forEach(k=>{const el=$(`fix-${k}`);if(el&&issue.suggestion[k]&&!el.value)el.value=issue.suggestion[k]});renderSuggestionHints(issue)}
 function renderSuggestionHints(issue){if(!issue.suggestion)return;['doi','year','venue'].forEach(k=>{const el=$(`fix-${k}`);if(el&&issue.suggestion[k]){el.closest('.field-card')?.classList.add('suggested');const h=el.closest('.field-card')?.querySelector('.field-hint');if(h)h.textContent=`Sugestão ${issue.suggestion.source}: ${issue.suggestion[k]}`}})}
 function applySafeFixes(){const safe=S.issues.filter(i=>i.status==='open'&&i.kind==='duplicate'&&i.confidence>=99);if(!safe.length){toast('O XML foi lido. As pendências atuais exigem busca ou conferência individual.');return;}safe.forEach(i=>{const remove=i.item;if(remove?.source?.parentNode){remove.source.parentNode.removeChild(remove.source);remove.removed=true;i.status='resolved';addChange('duplicate','Duplicidade exata removida',`${LABEL[remove.type]}: ${short(remove.title,120)}`)}});audit(false);toast(`${safe.length} correção(ões) segura(s) aplicada(s).`);render()}
