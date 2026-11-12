@@ -11,7 +11,7 @@ const initials=n=>String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x=>
 const sev=s=>s==='high'?'Crítico':s==='medium'?'Atenção':'Sugestão';
 const uid=()=>crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;$('toastStack').appendChild(d);setTimeout(()=>d.remove(),3000)}
-function view(name){$$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));const t={dashboard:'Seu currículo, sob controle.',lattes:'Seu Lattes, decodificado.',inbox:'Sua caixa acadêmica.',audit:'Revisão assistida.',report:'Seu XML corrigido.'};$('pageTitle').textContent=t[name]||'Easy Lattes';if(name==='audit')ensureCursor();scrollTo({top:0,behavior:'smooth'});render()}
+function view(name){$$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$$('.view').forEach(v=>v.classList.toggle('active',v.id===`view-${name}`));const t={dashboard:'Seu currículo, sob controle.',lattes:'Seu Lattes, decodificado.',inbox:'Sua caixa acadêmica.',audit:'Revisão assistida.',report:'Seu XML corrigido.'};$('pageTitle').textContent=t[name]||'Easy Lattes';if(name==='audit')ensureCursor();scrollTo({top:0,behavior:'smooth'});render();window.dispatchEvent(new CustomEvent('easy-lattes:view',{detail:{name}}))}
 function ref(el,attribute){return el&&el.hasAttribute(attribute)?{el,attribute}:el?{el,attribute}:null}
 function findRef(root,names){for(const el of [root,...root.querySelectorAll('*')])for(const n of names)if(el.hasAttribute(n))return{el,attribute:n};return null}
 function readRef(r){return r?.el?.getAttribute(r.attribute)||''}
@@ -43,7 +43,7 @@ function audit(reset=false){
 function recalcScore(){const active=S.items.filter(x=>!x.removed);const avg=active.length?active.reduce((a,p)=>a+p.complete,0)/active.length:0;const open=S.issues.filter(x=>x.status==='open'),pen=Math.min(22,open.filter(x=>x.severity==='high').length*1.8+open.filter(x=>x.severity==='medium').length*.7);S.score=active.length?Math.max(0,Math.round(avg-pen)):null}
 function ensureCursor(){const open=openIssues();if(!open.length){S.cursor=0;return}S.cursor=Math.max(0,Math.min(S.cursor,open.length-1))}
 const openIssues=()=>S.issues.filter(x=>x.status==='open');
-function addChange(kind,title,detail){S.changes.unshift({id:uid(),kind,title,detail,time:new Date()})}
+function addChange(kind,title,detail){S.changes.unshift({id:uid(),kind,title,detail,time:new Date()});window.dispatchEvent(new CustomEvent('easy-lattes:xml-mutated',{detail:{kind}}))}
 function resolveIssue(issue,status='resolved'){issue.status=status;recalcScore();ensureCursor();render()}
 function closeRelated(item){S.issues.forEach(i=>{if(i.status==='open'&&(i.item===item||i.peer===item||i.keep===item))i.status='resolved'})}
 function applyDuplicate(issue){const remove=issue.item;if(!remove?.source?.parentNode)return toast('Não consegui localizar esse registro no XML.');remove.source.parentNode.removeChild(remove.source);remove.removed=true;closeRelated(remove);addChange('duplicate','Duplicidade removida',`${LABEL[remove.type]}: ${short(remove.title,120)}`);audit(false);toast('Duplicidade removida da cópia do XML.');render()}

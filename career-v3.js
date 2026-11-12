@@ -155,9 +155,11 @@ function saveLocalDraft(d) {
 function addCandidateToXml(d) {
   if (!d.title || !d.title.trim()) return toast3('Informe o título antes de salvar.');
   if (!/^(19|20)\d{2}$/.test(d.year) || Number(d.year) > new Date().getFullYear()+1) return toast3('Confira o ano (4 dígitos).');
+  if(d.startYear&&!/^(19|20)\d{2}$/.test(d.startYear)||d.endYear&&!/^(19|20)\d{2}$/.test(d.endYear))return toast3('Confira os anos inicial e final.');
+  if(d.startYear&&d.endYear&&Number(d.endYear)<Number(d.startYear))return toast3('O ano final deve ser igual ou posterior ao inicial.');
   const duplicate = C.saved.some(x => x.type === d.type && x.year === d.year && norm(x.title) === norm(d.title));
   if (duplicate && (!C.doc || d.type === 'artigo')) return toast3('Essa atividade já está salva neste navegador.');
-  if (!C.doc || d.type === 'artigo') {
+  if (document.body.classList.contains('product-v9') || !C.doc || d.type === 'artigo') {
     const record = {...d, id:uid(), approvedAt:new Date().toISOString(), status:'saved'};
     C.saved.push(record);
     if (!saveLocalDraft(record)) { C.saved.pop(); return toast3('Não foi possível guardar neste navegador. Exporte seus dados antes de sair.'); }
@@ -166,7 +168,7 @@ function addCandidateToXml(d) {
     else C.candidates.unshift({...record,sourceName:d.sourceName||'Cadastro manual'});
     closeIntakeModal(); renderIntakeQueue(); renderSavedDrafts();
     window.dispatchEvent(new CustomEvent('easy-lattes:record-added',{detail:{record}}));
-    toast3(d.type === 'artigo' ? 'Artigo salvo para revisão; XML ainda não alterado.' : 'Atividade salva.');
+    toast3('Atividade confirmada. Confira o caminho de cadastro na sua ficha.');
     return;
   }
   try {
@@ -193,6 +195,9 @@ function addCandidateToXml(d) {
 
 function guessType(text) {
   const head = norm(String(text).slice(0,7000));
+  if(/projeto de extensao|acao de extensao|programa de extensao/.test(head))return 'extensao_projeto';
+  if(/projeto de pesquisa/.test(head))return 'pesquisa_projeto';
+  if(/disciplina ministrada|atividade de ensino|docencia/.test(head))return 'ensino_atividade';
   if (/journal of |scientific journal|research article|original article|artigo cientifico|artigo original|issn|abstract.*keywords|volume.*issue/.test(head) && /abstract|resumo|issn|doi|journal/.test(head)) return 'artigo';
   if (/\bbanca\b|defesa de|avaliador/.test(head)) return 'banca';
   if (/premio|premiacao|homenagem|titulo de/.test(head)) return 'premio';
@@ -382,7 +387,7 @@ function renderIntakeQueue() {
 }
 
 function typeLabel(t) {
-  return ({artigo:'Artigo científico',apresentacao:'Palestra / apresentação',curso:'Curso ministrado',evento:'Participação em evento',organizacao:'Organização de evento',banca:'Banca',premio:'Prêmio / título',outra:'Produção técnica'})[t] || t;
+  return ({pesquisa_projeto:'Projeto de pesquisa',extensao_projeto:'Projeto / ação de extensão',ensino_atividade:'Atividade de ensino',artigo:'Artigo científico',apresentacao:'Palestra / apresentação',curso:'Curso ministrado',evento:'Participação em evento',organizacao:'Organização de evento',banca:'Banca',premio:'Prêmio / título',outra:'Produção técnica'})[t] || t;
 }
 
 function openIntakeModal(candidate = null) {
@@ -391,6 +396,7 @@ function openIntakeModal(candidate = null) {
   const c = candidate || {id:uid(),type:'apresentacao',title:'',year:String(new Date().getFullYear()),institution:'',event:'',local:'',city:'',country:'Brasil',role:'Palestra',hours:'',person:'',notes:'',sourceName:'Entrada manual'};
   C.currentCandidate = c;
   q('#intakeType').value = c.type || 'outra';
+  if(q('#projectFieldsV9')){q('#projectFieldsV9').hidden=!['pesquisa_projeto','extensao_projeto','ensino_atividade'].includes(c.type);q('#intakeStartYearV9').value=c.startYear||'';q('#intakeEndYearV9').value=c.endYear||'';q('#intakeProjectStatusV9').value=c.projectStatus||'';}
   q('#intakeTitle').value = c.title || '';
   q('#intakeYear').value = c.year || '';
   q('#intakeInstitution').value = c.institution || '';
@@ -406,7 +412,7 @@ function openIntakeModal(candidate = null) {
   q('#intakeSource').textContent = c.sourceName || 'Entrada manual';
   modal.hidden = false;
   requestAnimationFrame(() => modal.classList.add('open'));
-  q('#intakeConfirm').textContent = C.doc && c.type !== 'artigo' ? 'Adicionar à cópia do XML' : 'Confirmar e salvar neste dispositivo';
+  q('#intakeConfirm').textContent = document.body.classList.contains('product-v9')?'Confirmar atividade':C.doc && c.type !== 'artigo' ? 'Adicionar à cópia do XML' : 'Confirmar e salvar neste dispositivo';
   q('#intakeTitle').focus();
 }
 
@@ -422,6 +428,7 @@ function formCandidate() {
   return {
     ...base,
     candidateId: base.id,
+    startYear:val('intakeStartYearV9'),endYear:val('intakeEndYearV9'),projectStatus:val('intakeProjectStatusV9'),
     type: val('intakeType'),
     title: val('intakeTitle'),
     year: val('intakeYear'),
@@ -619,7 +626,7 @@ function wire() {
     careerBtn.onclick=function(e){ if(old) old.call(this,e); setTimeout(()=>{const t=q('#pageTitle');if(t)t.textContent='Análise da sua carreira.'; renderCareer();},0); };
   }
   q('#manualEntryBtn')?.addEventListener('click',()=>openIntakeModal());
-  q('#intakeType')?.addEventListener('change',e=>{q('#articleFields').hidden=e.target.value!=='artigo';q('#intakeConfirm').textContent= C.doc && e.target.value!=='artigo'?'Adicionar à cópia do XML':'Confirmar e salvar neste dispositivo';});
+  q('#intakeType')?.addEventListener('change',e=>{q('#articleFields').hidden=e.target.value!=='artigo';if(q('#projectFieldsV9'))q('#projectFieldsV9').hidden=!['pesquisa_projeto','extensao_projeto','ensino_atividade'].includes(e.target.value);q('#intakeConfirm').textContent=document.body.classList.contains('product-v9')?'Confirmar atividade':C.doc && e.target.value!=='artigo'?'Adicionar à cópia do XML':'Confirmar e salvar neste dispositivo';});
   q('#intakeClose')?.addEventListener('click',closeIntakeModal);
   q('#intakeCancel')?.addEventListener('click',closeIntakeModal);
   q('#intakeModal')?.addEventListener('click',e=>{if(e.target.id==='intakeModal')closeIntakeModal()});
