@@ -275,7 +275,8 @@ function extractCandidate(text, sourceName = 'Entrada manual') {
     title = lines.find(x => !/certific|declar|particip|universidade|instituto/i.test(x)) || event || '';
   }
   const type = guessType(clean);
-  const role = type === 'apresentacao' ? (/palestr/i.test(clean) ? 'Palestra' : 'Apresentação de trabalho') : type === 'curso' ? 'Curso ministrado' : type === 'organizacao' ? 'Organização' : type === 'evento' ? 'Participação em evento' : type === 'banca' ? 'Participação em banca' : type === 'premio' ? 'Prêmio/Título' : 'Outra produção técnica';
+  let role = type === 'apresentacao' ? (/palestr/i.test(clean) ? 'Palestra' : 'Apresentação de trabalho') : type === 'curso' ? 'Curso ministrado' : type === 'organizacao' ? 'Organização' : type === 'evento' ? 'Participação em evento' : type === 'banca' ? 'Participação em banca' : type === 'premio' ? 'Prêmio/Título' : 'Outra produção técnica';
+  if(['pesquisa_projeto','extensao_projeto','ensino_atividade'].includes(type))role=firstMatch(clean,[/(?:participa[cç][aã]o|fun[cç][aã]o|papel)\s*[:\-–]\s*([^\n]{3,100})/i]);
   return {id:uid(), type, title, year, institution, event, local:'', city:'', country:'Brasil', role, hours, person, notes:'', sourceName, text:clean, status:'ready', confidence: Math.min(96, 48 + (year?12:0) + (title?18:0) + (institution?10:0) + (event?8:0))};
 }
 
@@ -379,7 +380,7 @@ function renderIntakeQueue() {
   } else {
     box.innerHTML = C.candidates.map(c => `<article class="smart-candidate ${c.status === 'added' || c.status === 'saved' ? 'added' : ''}">
       <div class="smart-candidate-icon"><i data-lucide="${c.type === 'artigo'?'book-open':c.type === 'apresentacao'?'mic-2':c.type === 'curso'?'presentation':c.type === 'evento'?'calendar-check':c.type === 'banca'?'users':c.type === 'premio'?'award':c.type === 'organizacao'?'calendar-cog':'file-plus-2'}"></i></div>
-      <div class="smart-candidate-main"><div class="smart-meta"><span>${typeLabel(c.type)}</span><span>${c.confidence}% qualidade preliminar</span><span>${esc(c.sourceName)}</span></div><h4>${esc(c.title || 'Título precisa de revisão')}</h4><p>${esc((c.type==='artigo'?[c.year,c.journal,c.publicationStatus]:[c.year,c.institution,c.event]).filter(Boolean).join(' • ') || 'Revise os campos antes de incluir no XML.')}</p></div>
+      <div class="smart-candidate-main"><div class="smart-meta"><span>${typeLabel(c.type)}</span><span>Extração automática · conferir</span><span>${esc(c.sourceName)}</span></div><h4>${esc(c.title || 'Título precisa de revisão')}</h4><p>${esc((c.type==='artigo'?[c.year,c.journal,c.publicationStatus]:[c.year,c.institution,c.event]).filter(Boolean).join(' • ') || 'Revise os campos antes de incluir no XML.')}</p></div>
       <div class="smart-candidate-action">${c.status === 'added' ? '<span class="added-pill"><i data-lucide="check"></i>No XML</span>' : c.status === 'saved' ? '<span class="added-pill"><i data-lucide="check"></i>Salvo localmente</span>' : `<button class="btn neon mini" data-review-candidate="${c.id}">Revisar e adicionar</button>`}</div>
     </article>`).join('');
   }
