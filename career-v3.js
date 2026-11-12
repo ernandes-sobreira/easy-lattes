@@ -194,7 +194,7 @@ function addCandidateToXml(d) {
 function guessType(text) {
   const head = norm(String(text).slice(0,7000));
   if (/journal of |scientific journal|research article|original article|artigo cientifico|artigo original|issn|abstract.*keywords|volume.*issue/.test(head) && /abstract|resumo|issn|doi|journal/.test(head)) return 'artigo';
-  if (/\\bbanca\\b|defesa de|avaliador/.test(head)) return 'banca';
+  if (/\bbanca\b|defesa de|avaliador/.test(head)) return 'banca';
   if (/premio|premiacao|homenagem|titulo de/.test(head)) return 'premio';
   if (/organizacao|organizador|comissao organizadora|coordenacao do evento/.test(head)) return 'organizacao';
   if (/ministrou|ministrante|curso de|minicurso|oficina/.test(head)) return 'curso';
@@ -205,39 +205,40 @@ function guessType(text) {
 
 function extractJournalArticle(text, sourceName) {
   const head = String(text||'').slice(0,12500);
-  const lines = head.split(/\\n/).map(x=>x.trim()).filter(Boolean);
+  const lines = head.split(/\n/).map(x=>x.trim()).filter(Boolean);
   const joined = lines.join(' ');
-  const isJournal = /\\b(journal of|revista (?:brasileira|cient[ií]fica|de)|scientific journal|research article|original article)\\b/i.test(head.slice(0,2500))
-    || (/\\babstract\\s*:/i.test(head) && /\\b(issn|volume|vol\\.|journal|doi)\\b/i.test(head.slice(0,5000)));
+  const isJournal = /\b(journal of|revista (?:brasileira|cient[ií]fica|de)|scientific journal|research article|original article)\b/i.test(head.slice(0,2500))
+    || (/\babstract\s*:/i.test(head) && /\b(issn|volume|vol\.|journal|doi)\b/i.test(head.slice(0,5000)));
   if (!isJournal) return null;
-  const idx = lines.findIndex(x=>/\\b(journal of|revista (?:brasileira|cient[ií]fica|de))\\b/i.test(x) && /20\\d{2}/.test(x));
+  const idx = lines.findIndex(x=>/\b(journal of|revista (?:brasileira|cient[ií]fica|de))\b/i.test(x) && /20\d{2}/.test(x));
   const lineStart = idx>=0?idx+1:0;
-  const stop = lines.findIndex((x,i)=>i>=lineStart && (/\\babstract\\s*:/i.test(x)||/\\bresumo\\s*:/i.test(x)));
+  const stop = lines.findIndex((x,i)=>i>=lineStart && (/\babstract\s*:/i.test(x)||/\bresumo\s*:/i.test(x)));
   const front = lines.slice(lineStart,stop>=0?stop:Math.min(lines.length,20));
   const titleLines=[];
   let afterTitle=0;
   for(let i=0;i<front.length && i<12;i++){
     const line=front[i];
-    if (/^\\d+$/.test(line) || /^(?:page|p[aá]gina)\\b/i.test(line)) continue;
-    if (/^\\s*(?:received|accepted|published|e-issn|issn|doi)\\b/i.test(line)) break;
-    if (/\\b(?:Ernandes|Maísa|Maisa|Cleverson)\\b/i.test(line) && titleLines.length) {afterTitle=i;break;}
-    if (/^\\s*[A-Z][a-z]+\\s+[A-Z][a-z]+.*\\d[,;]/.test(line) && titleLines.length) {afterTitle=i;break;}
-    if (line.length>18 && !/\\b(?:journal of|revista )\\b/i.test(line)) titleLines.push(line);
+    if (/^\d+$/.test(line) || /^(?:page|p[aá]gina)\b/i.test(line)) continue;
+    if (/^\s*(?:received|accepted|published|e-issn|issn|doi)\b/i.test(line)) break;
+    if (/\b(?:Ernandes|Maísa|Maisa|Cleverson)\b/i.test(line) && titleLines.length) {afterTitle=i;break;}
+    if (/^\s*[A-Z][a-z]+\s+[A-Z][a-z]+.*\d[,;]/.test(line) && titleLines.length) {afterTitle=i;break;}
+    if (line.length>18 && !/\b(?:journal of|revista )\b/i.test(line)) titleLines.push(line);
     if(titleLines.join(' ').length>230)break;
     afterTitle=i+1;
   }
-  const title = titleLines.join(' ').replace(/\\s+/g,' ').replace(/\\s*-\\s+/g,'-').trim();
-  const journalLine=lines.find(x=>/\\b(journal of|revista (?:brasileira|cient[ií]fica|de))\\b/i.test(x))||'';
-  const journal=(journalLine.match(/^(.*?)(?:,\\s*20\\d{2}\\b|\\s+20\\d{2}\\b)/)||[])[1]||journalLine;
-  const journalMatch=journalLine.match(/(?:20\\d{2})\\s*,\\s*(\\d{1,4})/);
+  const title = titleLines.join(' ').replace(/\s+/g,' ').replace(/\s*-\s+/g,'-').trim();
+  const journalLine=lines.find(x=>/\b(journal of|revista (?:brasileira|cient[ií]fica|de))\b/i.test(x))||'';
+  const journal=(journalLine.match(/^(.*?)(?:,\s*20\d{2}\b|\s+20\d{2}\b)/)||[])[1]||journalLine;
+  const journalMatch=journalLine.match(/(?:20\d{2})\s*,\s*(\d{1,4})/);
   const authorZone=front.slice(afterTitle).join(' ').split(/(?:Centro de |Universidade |Departamento de |Abstract:|Resumo:)/i)[0];
-  const authors=authorZone.replace(/\\d+,?\\*/g,'').replace(/\\d+/g,'').replace(/\\s+and\\s+/g,', ').split(/\\s*,\\s*/).map(x=>x.trim()).filter(x=>x.length>8 && x.length<90);
-  const doi=(head.slice(0,5000).match(/(?:doi\\s*[:/]\\s*|doi\\.org\\/)(10\\.\\d{4,9}\\/[-._;()/:A-Z0-9]+)/i)||[])[1]||'';
-  const placeholder=/000\\s*[-–]\\s*000|00-00-20\\d{2}/.test(head.slice(0,8500));
+  const authors=authorZone.replace(/\d+,?\*/g,'').replace(/\d+/g,'').replace(/\s+and\s+/g,', ').split(/\s*,\s*/).map(x=>x.trim()).filter(x=>x.length>8 && x.length<90);
+  const doi=(head.slice(0,5000).match(/(?:doi\s*[:/]\s*|doi\.org\/)(10\.\d{4,9}\/[-._;()/:A-Z0-9]+)/i)||[])[1]||'';
+  const placeholder=/000\s*[-–]\s*000|00-00-20\d{2}/.test(head.slice(0,8500));
+  const year=(journalLine.match(/\b(20\d{2})\b/)||head.match(/\b(20\d{2})\b/)||[])[1]||'';
   const pubStatus=placeholder?'Publicação a confirmar':'Situação editorial a conferir';
   return {
-    id:uid(),type:'artigo',title,year:(journalLine.match(/\\b(20\\d{2})\\b/)||[])[1]||'',
-    journal:journal.trim(),volume:journalMatch?.[1]||'',issue:'',pages:placeholder?'':((journalLine.match(/\\b\\d+\\s*,\\s*\\d+\\s*,\\s*(\\d+[-–]\\d+)\\b/)||[])[1]||''),
+    id:uid(),type:'artigo',title,year,
+    journal:journal.trim(),volume:journalMatch?.[1]||'',issue:'',pages:placeholder?'':((journalLine.match(/\b\d+\s*,\s*\d+\s*,\s*(\d+[-–]\d+)\b/)||[])[1]||''),
     authors:authors.join('; '),doi,publicationStatus:pubStatus,
     institution:'',event:'',role:'Artigo científico',hours:'',person:'',local:'',city:'',country:'',
     notes:placeholder?'Datas editoriais/paginação provisórias no PDF; não presumir publicação.':'Confirmar situação editorial e metadados antes do cadastro.',
@@ -300,7 +301,15 @@ async function extractPdf(file) {
       groups.get(y).push({x:it.transform?.[4]||0,str:it.str});
     }
     const ordered=[...groups.entries()].sort((a,b)=>b[0]-a[0]);
-    out+='\\n'+ordered.map(([,items])=>items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ')).join('\\n');
+    if (!content.items.some(it=>it.str?.trim())) {
+      const viewport=page.getViewport({scale:1.5}),canvas=document.createElement('canvas');
+      canvas.width=viewport.width;canvas.height=viewport.height;
+      await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+      out+='\n'+await extractImage(blob);
+      canvas.width=canvas.height=0;
+    }
+    out+='\n'+ordered.map(([,items])=>items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(' ')).join('\n');
   }
   return out.slice(0,55000);
 }
@@ -315,6 +324,7 @@ async function extractImage(file, progress) {
 }
 
 async function processEvidenceFile(file) {
+  if(file.size>30*1024*1024){toast3('Arquivo acima de 30 MB. Envie uma versão menor.');return;}
   const key = `${file.name}-${file.size}-${file.lastModified}`;
   if (C.processing.has(key)) return;
   C.processing.add(key);
@@ -329,10 +339,11 @@ async function processEvidenceFile(file) {
       window.lucide?.createIcons?.();
     });
     else if (/\.(txt|csv|md)$/i.test(file.name)) text = await file.text();
-    else {
-      text = file.name.replace(/\.[^.]+$/, '');
-      toast3('DOC/DOCX entrou na caixa. Para extração completa, a próxima etapa usará IA no servidor.');
-    }
+    else if (/\.docx$/i.test(file.name)) {
+      await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js','easy-mammoth');
+      text=(await window.mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value;
+    } else { throw new Error('Formato não suportado. Converta DOC para DOCX ou PDF.'); }
+    if (!text.trim()) throw new Error('Nenhum texto legível encontrado.');
     const candidate = extractCandidate(text, file.name);
     if (!candidate.title || candidate.type === 'outra') candidate.confidence = Math.min(candidate.confidence,35);
     C.candidates.unshift(candidate);
@@ -341,12 +352,16 @@ async function processEvidenceFile(file) {
     window.lucide?.createIcons?.();
   } catch (e) {
     console.error(e);
-    if (status) status.innerHTML = `<i data-lucide="triangle-alert"></i><span>Não consegui extrair automaticamente ${esc(file.name)}.</span>`;
+    if (status) status.innerHTML = `<i data-lucide="triangle-alert"></i><span>Não consegui ler ${esc(file.name)}: ${esc(e.message)}</span>`;
     toast3('Não consegui ler esse arquivo automaticamente. Você ainda pode cadastrar pelo botão “Digitar atividade”.');
   } finally {
     C.processing.delete(key);
   }
 }
+
+let evidenceQueue=Promise.resolve();
+function queueEvidence(files){for(const file of files)evidenceQueue=evidenceQueue.then(()=>processEvidenceFile(file));return evidenceQueue;}
+window.addEventListener('easy-lattes:import-files',e=>queueEvidence(e.detail?.files||[]));
 
 function renderIntakeQueue() {
   const box = q('#smartIntakeQueue');
@@ -610,8 +625,8 @@ function wire() {
   q('#intakeModal')?.addEventListener('click',e=>{if(e.target.id==='intakeModal')closeIntakeModal()});
   q('#intakeConfirm')?.addEventListener('click',()=>addCandidateToXml(formCandidate()));
   document.addEventListener('click',e=>{const b=e.target.closest('[data-review-candidate]');if(b){const c=C.candidates.find(x=>x.id===b.dataset.reviewCandidate);if(c)openIntakeModal(c)}});
-  q('#evidenceInput')?.addEventListener('change',e=>[...e.target.files].forEach(processEvidenceFile));
-  q('#dropzone')?.addEventListener('drop',e=>[...e.dataTransfer.files].forEach(processEvidenceFile));
+  q('#evidenceInput')?.addEventListener('change',e=>queueEvidence([...e.target.files]));
+  q('#dropzone')?.addEventListener('drop',e=>queueEvidence([...e.dataTransfer.files]));
   qa('.nav-item').forEach(b=>b.addEventListener('click',()=>setTimeout(syncAdditionsToReport,30)));
   renderIntakeQueue(); renderCareerEmpty();
 }
